@@ -1,8 +1,83 @@
-# rustopus
+# argo-rs
 
 A terminal application with TUI for managing GitHub repositories.
 
-> **Note:** You can use either `rustopus` or `gr` command - they are aliases for the same binary.
+> **Note:** You can use either `argo` or `gr` command - they are aliases for the same binary.
+
+## Installation
+
+### Quick Install (macOS/Linux)
+
+```bash
+curl -sSL https://raw.githubusercontent.com/stefanodecillis/argo-rs/main/install.sh | bash
+```
+
+This will:
+- Detect your platform (macOS/Linux, x86_64/aarch64)
+- Download the latest release
+- Install `gr` and `argo` to `~/.local/bin/`
+- Sign the binary on macOS for Keychain compatibility
+
+### Build from Source
+
+**Prerequisites:**
+- [Rust](https://rustup.rs/) (1.70 or later)
+- Git
+
+```bash
+# Clone the repository
+git clone https://github.com/stefanodecillis/argo-rs.git
+cd argo-rs
+
+# Build release binary
+cargo build --release
+
+# Install to your PATH
+cp target/release/gr ~/.local/bin/
+
+# Optional: create the argo alias
+ln -sf ~/.local/bin/gr ~/.local/bin/argo
+```
+
+Make sure `~/.local/bin` is in your PATH:
+
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+### Updating
+
+To update to the latest version, simply run the install script again:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/stefanodecillis/argo-rs/main/install.sh | bash
+```
+
+### Uninstalling
+
+**Quick Uninstall (macOS/Linux):**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/stefanodecillis/argo-rs/main/uninstall.sh | bash
+```
+
+This will remove binaries and optionally remove configuration files. Stored credentials must be removed manually (the script will provide instructions).
+
+**Manual Uninstall:**
+
+```bash
+# Remove binaries
+rm -f ~/.local/bin/gr ~/.local/bin/argo
+
+# Remove configuration (macOS)
+rm -rf ~/Library/Application\ Support/com.argo-rs.argo-rs
+
+# Remove configuration (Linux)
+rm -rf ~/.config/argo-rs
+```
+
+For credentials, open your system's keychain/password manager and search for "argo-rs" entries.
 
 ## Features
 
@@ -13,25 +88,6 @@ A terminal application with TUI for managing GitHub repositories.
 - **AI Integration**: Generate commit messages and PR descriptions using Gemini AI
 - **TUI Mode**: Interactive terminal UI with vim-style navigation
 - **Polling**: Real-time updates for PR comments
-
-## Installation
-
-### Quick Install (macOS/Linux)
-
-```bash
-curl -sSL https://raw.githubusercontent.com/stefanodecillis/rustopus/main/install.sh | bash
-```
-
-### Build from Source
-
-```bash
-git clone https://github.com/stefanodecillis/rustopus.git
-cd rustopus
-cargo build --release
-cp target/release/gr ~/.local/bin/
-# Or use the full name:
-# cp target/release/rustopus ~/.local/bin/
-```
 
 ## Quick Start
 
@@ -127,8 +183,8 @@ gr
 
 | Key | Action |
 |-----|--------|
-| `j` / `↓` | Move down |
-| `k` / `↑` | Move up |
+| `j` / `Down` | Move down |
+| `k` / `Up` | Move up |
 | `Enter` | Select / Confirm |
 | `Esc` / `q` | Back / Quit |
 | `p` | Go to PR list |
@@ -146,19 +202,23 @@ gr
 ## Configuration
 
 Configuration is stored in:
-- **macOS**: `~/Library/Application Support/com.rustopus.rustopus/config.toml`
-- **Linux**: `~/.config/rustopus/config.toml`
+- **macOS**: `~/Library/Application Support/com.argo-rs.argo-rs/config.toml`
+- **Linux**: `~/.config/argo-rs/config.toml`
 
 Credentials (GitHub token, Gemini API key) are stored securely in:
 - **macOS**: Keychain
 - **Linux**: Secret Service (GNOME Keyring, KWallet, etc.)
 
+### GitHub OAuth
+
+argo-rs uses GitHub's OAuth Device Flow for authentication. The OAuth app is registered under the argo-rs project. When you run `gr auth login`, you'll be redirected to GitHub to authorize the official argo-rs application.
+
 ## Development
 
 ```bash
 # Clone
-git clone https://github.com/stefanodecillis/rustopus.git
-cd rustopus
+git clone https://github.com/stefanodecillis/argo-rs.git
+cd argo-rs
 
 # Build
 cargo build
@@ -167,7 +227,7 @@ cargo build
 cargo run -- --help
 # Or run with specific binary name:
 cargo run --bin gr -- --help
-cargo run --bin rustopus -- --help
+cargo run --bin argo -- --help
 
 # Test
 cargo test
@@ -181,4 +241,4 @@ cargo clippy
 
 ## License
 
-MIT
+MIT - see [LICENSE](LICENSE) for details.

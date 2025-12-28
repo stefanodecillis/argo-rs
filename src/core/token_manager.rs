@@ -160,9 +160,11 @@ mod tests {
 
     #[test]
     fn test_is_authenticated_with_env_var() {
-        // This test would need to set GITHUB_TOKEN env var
-        // For now, just verify the function exists and returns a Result
+        // Set env var to test the env var path (avoids keyring access)
+        std::env::set_var("GITHUB_TOKEN", "test_token");
         let result = TokenManager::is_authenticated();
         assert!(result.is_ok());
+        assert!(result.unwrap()); // Should be true since env var is set
+        std::env::remove_var("GITHUB_TOKEN");
     }
 }

@@ -3,7 +3,7 @@
 //! A terminal application for managing GitHub repositories.
 //! Run without arguments to launch the TUI, or use subcommands for CLI mode.
 //!
-//! Available as both `gr` and `argo` commands.
+//! Available as the `argo` command.
 
 use std::io::{self, Write};
 

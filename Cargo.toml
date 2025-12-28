@@ -10,12 +10,6 @@ readme = "README.md"
 keywords = ["github", "tui", "git", "cli", "pull-request"]
 categories = ["command-line-utilities", "development-tools"]
 
-# Primary command
-[[bin]]
-name = "gr"
-path = "src/main.rs"
-
-# Alias - same binary with full name
 [[bin]]
 name = "argo"
 path = "src/main.rs"

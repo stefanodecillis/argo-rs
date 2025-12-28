@@ -20,12 +20,12 @@ jobs:
           # macOS Apple Silicon
           - target: aarch64-apple-darwin
             os: macos-latest
-            name: gr-macos-aarch64
+            name: argo-macos-aarch64
 
           # Linux x86_64
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            name: gr-linux-x86_64
+            name: argo-linux-x86_64
 
     steps:
       - name: Checkout
@@ -48,8 +48,7 @@ jobs:
       - name: Package
         run: |
           cd target/${{ matrix.target }}/release
-          # Package the gr binary (argo is the same binary, symlinked on install)
-          tar -czvf ../../../${{ matrix.name }}.tar.gz gr
+          tar -czvf ../../../${{ matrix.name }}.tar.gz argo
           cd ../../..
 
       - name: Upload artifact
@@ -74,8 +73,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            gr-macos-aarch64/gr-macos-aarch64.tar.gz
-            gr-linux-x86_64/gr-linux-x86_64.tar.gz
+            argo-macos-aarch64/argo-macos-aarch64.tar.gz
+            argo-linux-x86_64/argo-linux-x86_64.tar.gz
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

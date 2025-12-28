@@ -4,8 +4,7 @@
 
 set -e
 
-BINARY_NAME="gr"
-BINARY_ALIAS="argo"
+BINARY_NAME="argo"
 INSTALL_DIR="${HOME}/.local/bin"
 
 # Config paths
@@ -47,24 +46,19 @@ detect_os() {
     esac
 }
 
-# Remove binaries
-remove_binaries() {
-    local removed=0
-
+# Remove binary
+remove_binary() {
     if [ -f "$INSTALL_DIR/$BINARY_NAME" ]; then
         rm -f "$INSTALL_DIR/$BINARY_NAME"
         info "Removed $INSTALL_DIR/$BINARY_NAME"
-        removed=1
+    else
+        warn "Binary not found in $INSTALL_DIR"
     fi
 
-    if [ -L "$INSTALL_DIR/$BINARY_ALIAS" ] || [ -f "$INSTALL_DIR/$BINARY_ALIAS" ]; then
-        rm -f "$INSTALL_DIR/$BINARY_ALIAS"
-        info "Removed $INSTALL_DIR/$BINARY_ALIAS"
-        removed=1
-    fi
-
-    if [ $removed -eq 0 ]; then
-        warn "No binaries found in $INSTALL_DIR"
+    # Also remove old 'gr' binary if it exists (from previous versions)
+    if [ -f "$INSTALL_DIR/gr" ]; then
+        rm -f "$INSTALL_DIR/gr"
+        info "Removed old $INSTALL_DIR/gr binary"
     fi
 }
 
@@ -112,7 +106,7 @@ show_credentials_info() {
         macos)
             echo "To remove stored credentials from macOS Keychain:"
             echo "  1. Open 'Keychain Access' app"
-            echo "  2. Search for 'argo-rs' or 'gr'"
+            echo "  2. Search for 'argo-rs'"
             echo "  3. Delete any matching entries"
             echo ""
             echo "Or use the command line:"
@@ -121,7 +115,7 @@ show_credentials_info() {
         linux)
             echo "To remove stored credentials from Secret Service:"
             echo "  1. Open your system's password manager (e.g., GNOME Keyring, KWallet)"
-            echo "  2. Search for 'argo-rs' or 'gr'"
+            echo "  2. Search for 'argo-rs'"
             echo "  3. Delete any matching entries"
             echo ""
             echo "Or use secret-tool if available:"
@@ -140,8 +134,8 @@ uninstall() {
     echo "==================="
     echo ""
 
-    info "Removing binaries..."
-    remove_binaries
+    info "Removing binary..."
+    remove_binary
 
     echo ""
     remove_config

@@ -1,6 +1,6 @@
 //! CLI command definitions using clap
 //!
-//! Defines the command structure for the `gr` CLI tool.
+//! Defines the command structure for the `argo` CLI tool.
 
 use clap::{Parser, Subcommand, ValueEnum};
 
@@ -9,7 +9,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 /// A terminal application for managing GitHub repositories.
 /// Run without arguments to launch the TUI mode.
 #[derive(Parser, Debug)]
-#[command(name = "gr", version, about, long_about = None)]
+#[command(name = "argo", version, about, long_about = None)]
 pub struct Cli {
     /// Subcommand to execute
     #[command(subcommand)]

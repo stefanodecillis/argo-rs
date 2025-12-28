@@ -5,8 +5,7 @@
 set -e
 
 REPO="stefanodecillis/argo-rs"
-BINARY_NAME="gr"
-BINARY_ALIAS="argo"
+BINARY_NAME="argo"
 INSTALL_DIR="${HOME}/.local/bin"
 
 # Colors
@@ -102,7 +101,7 @@ install() {
     fi
     info "Latest version: $version"
 
-    download_url="https://github.com/${REPO}/releases/download/${version}/gr-${platform}.tar.gz"
+    download_url="https://github.com/${REPO}/releases/download/${version}/argo-${platform}.tar.gz"
     info "Download URL: $download_url"
 
     # Create temp directory
@@ -111,24 +110,21 @@ install() {
 
     # Download
     info "Downloading..."
-    if ! curl -sSL "$download_url" -o "$temp_dir/gr.tar.gz"; then
+    if ! curl -sSL "$download_url" -o "$temp_dir/argo.tar.gz"; then
         error "Failed to download from $download_url"
     fi
 
     # Extract
     info "Extracting..."
-    tar -xzf "$temp_dir/gr.tar.gz" -C "$temp_dir"
+    tar -xzf "$temp_dir/argo.tar.gz" -C "$temp_dir"
 
     # Create install directory if needed
     mkdir -p "$INSTALL_DIR"
 
-    # Install both binaries
+    # Install binary
     info "Installing to $INSTALL_DIR..."
     mv "$temp_dir/$BINARY_NAME" "$INSTALL_DIR/"
     chmod +x "$INSTALL_DIR/$BINARY_NAME"
-
-    # Create argo alias (symlink to gr)
-    ln -sf "$INSTALL_DIR/$BINARY_NAME" "$INSTALL_DIR/$BINARY_ALIAS"
 
     # Sign binary on macOS for Keychain "Always Allow" to persist
     if [ "$(uname -s)" = "Darwin" ]; then
@@ -140,7 +136,7 @@ install() {
         fi
     fi
 
-    info "Successfully installed $BINARY_NAME and $BINARY_ALIAS to $INSTALL_DIR"
+    info "Successfully installed $BINARY_NAME to $INSTALL_DIR"
 
     # Check if in PATH
     if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
@@ -163,7 +159,7 @@ install() {
     echo "Get started:"
     echo "  1. Authenticate: $BINARY_NAME auth login"
     echo "  2. Navigate to a git repository"
-    echo "  3. Run: $BINARY_NAME (or $BINARY_ALIAS)"
+    echo "  3. Run: $BINARY_NAME"
     echo ""
     echo "For help: $BINARY_NAME --help"
 }

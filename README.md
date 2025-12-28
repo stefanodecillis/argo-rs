@@ -2,7 +2,7 @@
 
 A terminal application with TUI for managing GitHub repositories.
 
-> **Note:** You can use either `argo` or `gr` command - they are aliases for the same binary.
+> **Note:** The command is `argo`. If you have `gr` aliased to `git remote` (common in oh-my-zsh), this avoids the conflict.
 
 ## Installation
 
@@ -15,7 +15,7 @@ curl -sSL https://raw.githubusercontent.com/stefanodecillis/argo-rs/main/install
 This will:
 - Detect your platform (macOS/Linux, x86_64/aarch64)
 - Download the latest release
-- Install `gr` and `argo` to `~/.local/bin/`
+- Install `argo` to `~/.local/bin/`
 - Sign the binary on macOS for Keychain compatibility
 
 ### Build from Source
@@ -33,10 +33,7 @@ cd argo-rs
 cargo build --release
 
 # Install to your PATH
-cp target/release/gr ~/.local/bin/
-
-# Optional: create the argo alias
-ln -sf ~/.local/bin/gr ~/.local/bin/argo
+cp target/release/argo ~/.local/bin/
 ```
 
 Make sure `~/.local/bin` is in your PATH:
@@ -67,8 +64,8 @@ This will remove binaries and optionally remove configuration files. Stored cred
 **Manual Uninstall:**
 
 ```bash
-# Remove binaries
-rm -f ~/.local/bin/gr ~/.local/bin/argo
+# Remove binary
+rm -f ~/.local/bin/argo
 
 # Remove configuration (macOS)
 rm -rf ~/Library/Application\ Support/com.argo-rs.argo-rs
@@ -93,20 +90,20 @@ For credentials, open your system's keychain/password manager and search for "ar
 
 1. **Authenticate with GitHub**:
    ```bash
-   gr auth login
+   argo auth login
    ```
 
 2. **Navigate to a git repository and launch TUI**:
    ```bash
    cd your-repo
-   gr
+   argo
    ```
 
 3. **Or use CLI commands directly**:
    ```bash
-   gr pr list
-   gr pr create --title "My PR" --body "Description"
-   gr commit -m "feat: add new feature"
+   argo pr list
+   argo pr create --title "My PR" --body "Description"
+   argo commit -m "feat: add new feature"
    ```
 
 ## CLI Commands
@@ -114,55 +111,55 @@ For credentials, open your system's keychain/password manager and search for "ar
 ### Authentication
 
 ```bash
-gr auth login     # Login via OAuth Device Flow
-gr auth logout    # Remove stored credentials
-gr auth status    # Check authentication status
+argo auth login     # Login via OAuth Device Flow
+argo auth logout    # Remove stored credentials
+argo auth status    # Check authentication status
 ```
 
 ### Pull Requests
 
 ```bash
-gr pr list                          # List open PRs
-gr pr list --state=all              # List all PRs
-gr pr list --author=username        # Filter by author
+argo pr list                          # List open PRs
+argo pr list --state=all              # List all PRs
+argo pr list --author=username        # Filter by author
 
-gr pr create --title "Title"        # Create PR with title
-gr pr create --ai                   # Create PR with AI-generated title/body
-gr pr create --draft                # Create as draft PR
+argo pr create --title "Title"        # Create PR with title
+argo pr create --ai                   # Create PR with AI-generated title/body
+argo pr create --draft                # Create as draft PR
 
-gr pr view 123                      # View PR #123 with comments
-gr pr comment 123 "Great work!"     # Add comment to PR #123
+argo pr view 123                      # View PR #123 with comments
+argo pr comment 123 "Great work!"     # Add comment to PR #123
 
-gr pr merge 123                     # Merge PR #123 (merge commit)
-gr pr merge 123 --squash            # Squash and merge
-gr pr merge 123 --rebase            # Rebase and merge
-gr pr merge 123 --delete            # Delete branch after merge
+argo pr merge 123                     # Merge PR #123 (merge commit)
+argo pr merge 123 --squash            # Squash and merge
+argo pr merge 123 --rebase            # Rebase and merge
+argo pr merge 123 --delete            # Delete branch after merge
 ```
 
 ### Branches
 
 ```bash
-gr branch list                      # List remote branches
-gr branch delete feature-branch     # Delete remote branch
-gr branch delete old-branch --force # Delete without confirmation
+argo branch list                      # List remote branches
+argo branch delete feature-branch     # Delete remote branch
+argo branch delete old-branch --force # Delete without confirmation
 ```
 
 ### Commits
 
 ```bash
-gr commit -m "commit message"       # Commit staged changes
-gr commit -a -m "message"           # Stage all and commit
-gr commit --ai                      # Generate message with AI
-gr commit -a --ai                   # Stage all + AI message
+argo commit -m "commit message"       # Commit staged changes
+argo commit -a -m "message"           # Stage all and commit
+argo commit --ai                      # Generate message with AI
+argo commit -a --ai                   # Stage all + AI message
 ```
 
 ### Configuration
 
 ```bash
-gr config set gemini-key YOUR_KEY   # Set Gemini API key for AI features
-gr config get gemini-key            # Check if key is configured
-gr config set gemini-model MODEL    # Set AI model
-gr config get gemini-model          # Show current model
+argo config set gemini-key YOUR_KEY   # Set Gemini API key for AI features
+argo config get gemini-key            # Check if key is configured
+argo config set gemini-model MODEL    # Set AI model
+argo config get gemini-model          # Show current model
 ```
 
 #### Available Gemini Models
@@ -173,10 +170,10 @@ gr config get gemini-model          # Show current model
 
 ## TUI Mode
 
-Launch the interactive TUI by running `gr` without arguments:
+Launch the interactive TUI by running `argo` without arguments:
 
 ```bash
-gr
+argo
 ```
 
 ### Key Bindings
@@ -205,8 +202,8 @@ Pre-built binaries are available for the following platforms:
 
 | Platform | Architecture | Download |
 |----------|--------------|----------|
-| macOS | Apple Silicon (M1/M2/M3) | `gr-macos-aarch64.tar.gz` |
-| Linux | x86_64 | `gr-linux-x86_64.tar.gz` |
+| macOS | Apple Silicon (M1/M2/M3) | `argo-macos-aarch64.tar.gz` |
+| Linux | x86_64 | `argo-linux-x86_64.tar.gz` |
 
 For other platforms (macOS Intel, Linux ARM64), please build from source.
 
@@ -222,7 +219,7 @@ Credentials (GitHub token, Gemini API key) are stored securely in:
 
 ### GitHub OAuth
 
-argo-rs uses GitHub's OAuth Device Flow for authentication. The OAuth app is registered under the argo-rs project. When you run `gr auth login`, you'll be redirected to GitHub to authorize the official argo-rs application.
+argo-rs uses GitHub's OAuth Device Flow for authentication. The OAuth app is registered under the argo-rs project. When you run `argo auth login`, you'll be redirected to GitHub to authorize the official argo-rs application.
 
 ## Development
 
@@ -236,9 +233,6 @@ cargo build
 
 # Run
 cargo run -- --help
-# Or run with specific binary name:
-cargo run --bin gr -- --help
-cargo run --bin argo -- --help
 
 # Test
 cargo test

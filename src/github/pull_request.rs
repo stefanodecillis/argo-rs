@@ -1,7 +1,7 @@
 //! Pull request operations
 
-use octocrab::models::pulls::PullRequest;
 use octocrab::models::issues::Comment;
+use octocrab::models::pulls::PullRequest;
 use octocrab::params::pulls::Sort;
 use octocrab::params::State;
 use serde::{Deserialize, Serialize};
@@ -163,12 +163,7 @@ impl<'a> PullRequestHandler<'a> {
         let items = if let Some(author) = author {
             prs.items
                 .into_iter()
-                .filter(|pr| {
-                    pr.user
-                        .as_ref()
-                        .map(|u| u.login == author)
-                        .unwrap_or(false)
-                })
+                .filter(|pr| pr.user.as_ref().map(|u| u.login == author).unwrap_or(false))
                 .collect()
         } else {
             prs.items
@@ -237,12 +232,7 @@ impl<'a> PullRequestHandler<'a> {
 
     /// List comments on a pull request
     pub async fn list_comments(&self, number: u64) -> Result<Vec<Comment>> {
-        let comments = self
-            .client
-            .issues()
-            .list_comments(number)
-            .send()
-            .await?;
+        let comments = self.client.issues().list_comments(number).send().await?;
         Ok(comments.items)
     }
 
@@ -254,11 +244,7 @@ impl<'a> PullRequestHandler<'a> {
             self.client.owner, self.client.repo, number
         );
 
-        let response: String = self
-            .client
-            .octocrab()
-            .get(&route, None::<&()>)
-            .await?;
+        let response: String = self.client.octocrab().get(&route, None::<&()>).await?;
 
         Ok(response)
     }
@@ -270,11 +256,7 @@ impl<'a> PullRequestHandler<'a> {
             self.client.owner, self.client.repo, comment_id
         );
 
-        let reactions: Vec<Reaction> = self
-            .client
-            .octocrab()
-            .get(&route, None::<&()>)
-            .await?;
+        let reactions: Vec<Reaction> = self.client.octocrab().get(&route, None::<&()>).await?;
 
         Ok(reactions)
     }
@@ -299,21 +281,13 @@ impl<'a> PullRequestHandler<'a> {
             content: reaction.content(),
         };
 
-        let new_reaction: Reaction = self
-            .client
-            .octocrab()
-            .post(&route, Some(&body))
-            .await?;
+        let new_reaction: Reaction = self.client.octocrab().post(&route, Some(&body)).await?;
 
         Ok(new_reaction)
     }
 
     /// Delete a reaction from a comment
-    pub async fn delete_comment_reaction(
-        &self,
-        comment_id: u64,
-        reaction_id: u64,
-    ) -> Result<()> {
+    pub async fn delete_comment_reaction(&self, comment_id: u64, reaction_id: u64) -> Result<()> {
         let route = format!(
             "/repos/{}/{}/issues/comments/{}/reactions/{}",
             self.client.owner, self.client.repo, comment_id, reaction_id

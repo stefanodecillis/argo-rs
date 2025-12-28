@@ -180,8 +180,9 @@ impl CredentialStore {
         let entry = Entry::new(SERVICE_NAME, GITHUB_TOKEN_DATA_KEY)?;
         let result = match entry.get_password() {
             Ok(json) => {
-                let stored: StoredTokenData = serde_json::from_str(&json)
-                    .map_err(|e| GhrustError::Config(format!("Invalid stored token data: {}", e)))?;
+                let stored: StoredTokenData = serde_json::from_str(&json).map_err(|e| {
+                    GhrustError::Config(format!("Invalid stored token data: {}", e))
+                })?;
                 Some(OAuthTokenData::from_stored(stored)?)
             }
             Err(keyring::Error::NoEntry) => None,
@@ -343,11 +344,7 @@ impl CredentialStore {
         if exposed.len() <= 8 {
             "*".repeat(exposed.len())
         } else {
-            format!(
-                "{}...{}",
-                &exposed[..4],
-                &exposed[exposed.len() - 4..]
-            )
+            format!("{}...{}", &exposed[..4], &exposed[exposed.len() - 4..])
         }
     }
 }

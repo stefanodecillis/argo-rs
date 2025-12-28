@@ -27,20 +27,23 @@ async fn handle_list() -> Result<()> {
         return Ok(());
     }
 
-    println!("Remote branches for {}/{}:\n", repo_ctx.owner, repo_ctx.name);
+    println!(
+        "Remote branches for {}/{}:\n",
+        repo_ctx.owner, repo_ctx.name
+    );
 
     for branch in branches {
         let default_marker = if branch.is_default { " (default)" } else { "" };
         let protected_marker = if branch.protected { " 🔒" } else { "" };
-        let current_marker = if branch.name == repo_ctx.current_branch { " ←" } else { "" };
+        let current_marker = if branch.name == repo_ctx.current_branch {
+            " ←"
+        } else {
+            ""
+        };
 
         println!(
-            "  {} {}{}{}{}",
-            branch.name,
-            default_marker,
-            protected_marker,
-            current_marker,
-            ""
+            "  {} {}{}{}",
+            branch.name, default_marker, protected_marker, current_marker
         );
     }
 

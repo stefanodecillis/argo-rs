@@ -29,19 +29,10 @@ impl<'a> BranchHandler<'a> {
 
     /// List remote branches
     pub async fn list(&self) -> Result<Vec<BranchInfo>> {
-        let branches = self
-            .client
-            .repos()
-            .list_branches()
-            .send()
-            .await?;
+        let branches = self.client.repos().list_branches().send().await?;
 
         // Get repo info to determine default branch
-        let repo = self
-            .client
-            .repos()
-            .get()
-            .await?;
+        let repo = self.client.repos().get().await?;
 
         let default_branch = repo.default_branch.unwrap_or_else(|| "main".to_string());
 

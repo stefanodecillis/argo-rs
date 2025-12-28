@@ -101,7 +101,8 @@ async fn handle_login_pat() -> Result<()> {
     println!();
 
     // Try to open the token creation page
-    let token_url = "https://github.com/settings/tokens/new?scopes=repo,read:org&description=argo-rs";
+    let token_url =
+        "https://github.com/settings/tokens/new?scopes=repo,read:org&description=argo-rs";
     if open_browser(token_url) {
         println!("✓ Browser opened to token creation page.");
         println!();
@@ -141,13 +142,11 @@ async fn validate_token(token: &str) -> Result<()> {
         .map_err(|e| GhrustError::AuthenticationFailed(e.to_string()))?;
 
     // Test the token by getting the authenticated user
-    let user = octocrab
-        .current()
-        .user()
-        .await
-        .map_err(|_| GhrustError::AuthenticationFailed(
-            "Invalid token. Please check the token and try again.".to_string()
-        ))?;
+    let user = octocrab.current().user().await.map_err(|_| {
+        GhrustError::AuthenticationFailed(
+            "Invalid token. Please check the token and try again.".to_string(),
+        )
+    })?;
 
     println!("✓ Token valid! Logged in as @{}", user.login);
     Ok(())
@@ -157,18 +156,12 @@ async fn validate_token(token: &str) -> Result<()> {
 fn open_browser(url: &str) -> bool {
     #[cfg(target_os = "macos")]
     {
-        Command::new("open")
-            .arg(url)
-            .spawn()
-            .is_ok()
+        Command::new("open").arg(url).spawn().is_ok()
     }
 
     #[cfg(target_os = "linux")]
     {
-        Command::new("xdg-open")
-            .arg(url)
-            .spawn()
-            .is_ok()
+        Command::new("xdg-open").arg(url).spawn().is_ok()
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
@@ -196,8 +189,22 @@ fn handle_status() -> Result<()> {
     let has_gemini = CredentialStore::has_gemini_key()?;
 
     println!("Authentication Status:");
-    println!("  GitHub: {}", if has_github { "Authenticated" } else { "Not authenticated" });
-    println!("  Gemini: {}", if has_gemini { "Configured" } else { "Not configured" });
+    println!(
+        "  GitHub: {}",
+        if has_github {
+            "Authenticated"
+        } else {
+            "Not authenticated"
+        }
+    );
+    println!(
+        "  Gemini: {}",
+        if has_gemini {
+            "Configured"
+        } else {
+            "Not configured"
+        }
+    );
 
     if has_github {
         if let Ok(Some(token)) = CredentialStore::get_github_token() {
@@ -222,7 +229,9 @@ fn handle_status() -> Result<()> {
             }
 
             // Show refresh token status
-            let refresh_expires_in = token_data.refresh_token_expires_at.signed_duration_since(now);
+            let refresh_expires_in = token_data
+                .refresh_token_expires_at
+                .signed_duration_since(now);
             if refresh_expires_in.num_seconds() > 0 {
                 let days = refresh_expires_in.num_days();
                 println!("  Refresh token valid for: {} days", days);

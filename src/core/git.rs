@@ -140,10 +140,9 @@ impl GitRepository {
     pub fn all_changes_diff(&self) -> Result<String> {
         let head = self.repo.head()?.peel_to_tree()?;
 
-        let diff = self.repo.diff_tree_to_workdir_with_index(
-            Some(&head),
-            Some(&mut DiffOptions::new()),
-        )?;
+        let diff = self
+            .repo
+            .diff_tree_to_workdir_with_index(Some(&head), Some(&mut DiffOptions::new()))?;
 
         let mut diff_text = String::new();
         diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
@@ -205,9 +204,7 @@ impl GitRepository {
         let head_commit = self.resolve_branch_to_commit(head)?;
 
         // Find merge base (common ancestor) - this is what GitHub uses for PRs
-        let merge_base = self
-            .repo
-            .merge_base(base_commit.id(), head_commit.id())?;
+        let merge_base = self.repo.merge_base(base_commit.id(), head_commit.id())?;
 
         let mut revwalk = self.repo.revwalk()?;
         revwalk.push(head_commit.id())?;
@@ -258,9 +255,8 @@ impl GitRepository {
                             | git2::Status::WT_TYPECHANGE,
                     ),
                     is_new: status.contains(git2::Status::WT_NEW),
-                    is_deleted: status.intersects(
-                        git2::Status::WT_DELETED | git2::Status::INDEX_DELETED,
-                    ),
+                    is_deleted: status
+                        .intersects(git2::Status::WT_DELETED | git2::Status::INDEX_DELETED),
                 });
             }
         }
@@ -279,7 +275,8 @@ impl GitRepository {
     /// Unstage a file
     pub fn unstage_file(&self, path: &str) -> Result<()> {
         let head = self.repo.head()?.peel_to_commit()?;
-        self.repo.reset_default(Some(&head.into_object()), [Path::new(path)])?;
+        self.repo
+            .reset_default(Some(&head.into_object()), [Path::new(path)])?;
         Ok(())
     }
 
@@ -344,13 +341,16 @@ impl GitRepository {
             cmd.arg("--force");
         }
 
-        let output = cmd.output().map_err(|e| {
-            GhrustError::Custom(format!("Failed to execute git push: {}", e))
-        })?;
+        let output = cmd
+            .output()
+            .map_err(|e| GhrustError::Custom(format!("Failed to execute git push: {}", e)))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(GhrustError::Custom(format!("Push failed: {}", stderr.trim())));
+            return Err(GhrustError::Custom(format!(
+                "Push failed: {}",
+                stderr.trim()
+            )));
         }
 
         Ok(())
@@ -418,7 +418,10 @@ impl GitRepository {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(GhrustError::Custom(format!("Push failed: {}", stderr.trim())));
+            return Err(GhrustError::Custom(format!(
+                "Push failed: {}",
+                stderr.trim()
+            )));
         }
 
         Ok(())
@@ -438,11 +441,13 @@ impl GitRepository {
     /// Create an annotated tag at HEAD
     pub fn create_annotated_tag(&self, name: &str, message: &str) -> Result<()> {
         let head = self.repo.head()?.peel_to_commit()?;
-        let signature = self.repo.signature().or_else(|_| {
-            Signature::now("ghrust", "ghrust@localhost")
-        })?;
+        let signature = self
+            .repo
+            .signature()
+            .or_else(|_| Signature::now("ghrust", "ghrust@localhost"))?;
 
-        self.repo.tag(name, head.as_object(), &signature, message, false)?;
+        self.repo
+            .tag(name, head.as_object(), &signature, message, false)?;
         Ok(())
     }
 
@@ -451,11 +456,16 @@ impl GitRepository {
         let output = Command::new("git")
             .args(["push", "--tags"])
             .output()
-            .map_err(|e| GhrustError::Custom(format!("Failed to execute git push --tags: {}", e)))?;
+            .map_err(|e| {
+                GhrustError::Custom(format!("Failed to execute git push --tags: {}", e))
+            })?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(GhrustError::Custom(format!("Push tags failed: {}", stderr.trim())));
+            return Err(GhrustError::Custom(format!(
+                "Push tags failed: {}",
+                stderr.trim()
+            )));
         }
 
         Ok(())
@@ -470,7 +480,10 @@ impl GitRepository {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(GhrustError::Custom(format!("Push tag failed: {}", stderr.trim())));
+            return Err(GhrustError::Custom(format!(
+                "Push tag failed: {}",
+                stderr.trim()
+            )));
         }
 
         Ok(())

@@ -1,23 +1,21 @@
 //! Main UI renderer
 
+use once_cell::sync::Lazy;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap};
 use regex::Regex;
-use once_cell::sync::Lazy;
 
 /// Regex patterns for stripping HTML from markdown
-static HTML_TAG_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"<[^>]+>").unwrap()
-});
-static HTML_COMMENT_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"<!--[\s\S]*?-->").unwrap()
-});
+static HTML_TAG_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"<[^>]+>").unwrap());
+static HTML_COMMENT_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"<!--[\s\S]*?-->").unwrap());
 
 /// Strip HTML tags and comments from markdown content
 /// GitHub PR descriptions often contain HTML that tui-markdown can't render
 fn strip_html(input: &str) -> String {
     let without_comments = HTML_COMMENT_REGEX.replace_all(input, "");
-    HTML_TAG_REGEX.replace_all(&without_comments, "").to_string()
+    HTML_TAG_REGEX
+        .replace_all(&without_comments, "")
+        .to_string()
 }
 
 /// Convert markdown string to styled ratatui Text
@@ -31,10 +29,7 @@ fn markdown_to_text(input: &str) -> Text<'static> {
         return Text::raw("(no content)");
     }
 
-    let lines: Vec<Line<'static>> = cleaned
-        .lines()
-        .map(|line| parse_markdown_line(line))
-        .collect();
+    let lines: Vec<Line<'static>> = cleaned.lines().map(parse_markdown_line).collect();
 
     Text::from(lines)
 }
@@ -74,9 +69,7 @@ fn parse_markdown_line(line: &str) -> Line<'static> {
 
     // List items (- or * or numbered)
     if let Some(content) = parse_list_item(trimmed) {
-        let mut spans = vec![
-            Span::styled("  • ", Style::default().fg(Color::Yellow)),
-        ];
+        let mut spans = vec![Span::styled("  • ", Style::default().fg(Color::Yellow))];
         spans.extend(parse_inline_spans(content));
         return Line::from(spans);
     }
@@ -102,7 +95,12 @@ fn parse_markdown_line(line: &str) -> Line<'static> {
         let content = trimmed.trim_start_matches('>').trim();
         return Line::from(vec![
             Span::styled("│ ", Style::default().fg(Color::DarkGray)),
-            Span::styled(content.to_string(), Style::default().fg(Color::Gray).add_modifier(Modifier::ITALIC)),
+            Span::styled(
+                content.to_string(),
+                Style::default()
+                    .fg(Color::Gray)
+                    .add_modifier(Modifier::ITALIC),
+            ),
         ]);
     }
 
@@ -221,7 +219,9 @@ fn parse_inline_spans(text: &str) -> Vec<Span<'static>> {
                 }
                 spans.push(Span::styled(
                     link_text,
-                    Style::default().fg(Color::Blue).add_modifier(Modifier::UNDERLINED),
+                    Style::default()
+                        .fg(Color::Blue)
+                        .add_modifier(Modifier::UNDERLINED),
                 ));
             }
             // Regular character
@@ -402,7 +402,10 @@ fn render_dashboard(frame: &mut Frame, area: Rect, app: &App) {
     let github_indicator = if app.github_authenticated {
         Span::styled("GitHub ✓", Style::default().fg(Color::Green))
     } else {
-        Span::styled("GitHub ✗ (run: gr auth login)", Style::default().fg(Color::Red))
+        Span::styled(
+            "GitHub ✗ (run: gr auth login)",
+            Style::default().fg(Color::Red),
+        )
     };
 
     let gemini_indicator = if app.gemini_configured {
@@ -411,11 +414,7 @@ fn render_dashboard(frame: &mut Frame, area: Rect, app: &App) {
         Span::styled("  AI ✗", Style::default().fg(Color::DarkGray))
     };
 
-    let status_line = Line::from(vec![
-        Span::raw("  "),
-        github_indicator,
-        gemini_indicator,
-    ]);
+    let status_line = Line::from(vec![Span::raw("  "), github_indicator, gemini_indicator]);
 
     let status = Paragraph::new(status_line);
     frame.render_widget(status, chunks[1]);
@@ -463,7 +462,11 @@ fn render_pr_list(frame: &mut Frame, area: Rect, app: &App) {
                 };
 
                 let title = pr.title.as_deref().unwrap_or("(no title)");
-                let author = pr.user.as_ref().map(|u| u.login.as_str()).unwrap_or("unknown");
+                let author = pr
+                    .user
+                    .as_ref()
+                    .map(|u| u.login.as_str())
+                    .unwrap_or("unknown");
 
                 let text = format!("  {} #{} {} ({})", state_icon, pr.number, title, author);
                 let item = ListItem::new(text);
@@ -488,8 +491,8 @@ fn render_pr_list(frame: &mut Frame, area: Rect, app: &App) {
 
     frame.render_widget(list, chunks[0]);
 
-    let help = Paragraph::new(" [n] New PR  [r] Refresh  [Enter] View  [Esc] Back")
-        .style(Theme::muted());
+    let help =
+        Paragraph::new(" [n] New PR  [r] Refresh  [Enter] View  [Esc] Back").style(Theme::muted());
     frame.render_widget(help, chunks[1]);
 }
 
@@ -514,9 +517,7 @@ fn render_pr_detail(frame: &mut Frame, area: Rect, app: &App, pr_number: u64) {
     render_pr_workflows_panel(frame, content_chunks[1], app);
 
     // Help bar
-    let help_text = if app.pr_comment_expanded {
-        " [j/k] Scroll  [Esc/Enter/q] Close"
-    } else if app.pr_description_expanded {
+    let help_text = if app.pr_comment_expanded || app.pr_description_expanded {
         " [j/k] Scroll  [Esc/Enter/q] Close"
     } else if app.pr_comment_input_mode {
         " [Enter] Submit  [Esc] Cancel"
@@ -547,16 +548,16 @@ fn render_pr_left_panel(frame: &mut Frame, area: Rect, app: &App, pr_number: u64
     // Determine layout based on comment input mode
     let constraints = if app.pr_comment_input_mode {
         vec![
-            Constraint::Length(5),   // PR info (compact)
-            Constraint::Length(8),   // Description preview
-            Constraint::Min(5),      // Comments
-            Constraint::Length(3),   // Comment input
+            Constraint::Length(5), // PR info (compact)
+            Constraint::Length(8), // Description preview
+            Constraint::Min(5),    // Comments
+            Constraint::Length(3), // Comment input
         ]
     } else {
         vec![
-            Constraint::Length(5),   // PR info (compact)
-            Constraint::Length(8),   // Description preview
-            Constraint::Min(5),      // Comments
+            Constraint::Length(5), // PR info (compact)
+            Constraint::Length(8), // Description preview
+            Constraint::Min(5),    // Comments
         ]
     };
 
@@ -567,12 +568,11 @@ fn render_pr_left_panel(frame: &mut Frame, area: Rect, app: &App, pr_number: u64
 
     // PR Info section (chunks[0])
     if app.pr_detail_loading {
-        let loading = Paragraph::new(format!("\n  Loading PR #{}...", pr_number))
-            .block(
-                Block::default()
-                    .title(format!(" PR #{} ", pr_number))
-                    .borders(Borders::ALL),
-            );
+        let loading = Paragraph::new(format!("\n  Loading PR #{}...", pr_number)).block(
+            Block::default()
+                .title(format!(" PR #{} ", pr_number))
+                .borders(Borders::ALL),
+        );
         frame.render_widget(loading, chunks[0]);
     } else if let Some(pr) = &app.selected_pr {
         let state_str = match &pr.state {
@@ -580,9 +580,17 @@ fn render_pr_left_panel(frame: &mut Frame, area: Rect, app: &App, pr_number: u64
             Some(IssueState::Closed) => "Closed",
             None | Some(_) => "Unknown",
         };
-        let draft_str = if pr.draft == Some(true) { " (Draft)" } else { "" };
+        let draft_str = if pr.draft == Some(true) {
+            " (Draft)"
+        } else {
+            ""
+        };
         let title = pr.title.as_deref().unwrap_or("(no title)");
-        let author = pr.user.as_ref().map(|u| u.login.as_str()).unwrap_or("unknown");
+        let author = pr
+            .user
+            .as_ref()
+            .map(|u| u.login.as_str())
+            .unwrap_or("unknown");
         let head_branch = pr.head.ref_field.as_str();
         let base_branch = pr.base.ref_field.as_str();
 
@@ -607,21 +615,27 @@ fn render_pr_left_panel(frame: &mut Frame, area: Rect, app: &App, pr_number: u64
             ]),
             Line::from(vec![
                 Span::styled("Branches: ", Style::default().fg(Color::Cyan)),
-                Span::raw(format!("{} → {}", truncate(head_branch, 20), truncate(base_branch, 20))),
+                Span::raw(format!(
+                    "{} → {}",
+                    truncate(head_branch, 20),
+                    truncate(base_branch, 20)
+                )),
             ]),
         ];
 
-        let content = Paragraph::new(lines)
-            .block(
-                Block::default()
-                    .title(format!(" PR #{} ", pr_number))
-                    .borders(Borders::ALL)
-                    .border_style(Theme::normal()),
-            );
+        let content = Paragraph::new(lines).block(
+            Block::default()
+                .title(format!(" PR #{} ", pr_number))
+                .borders(Borders::ALL)
+                .border_style(Theme::normal()),
+        );
         frame.render_widget(content, chunks[0]);
     } else {
-        let error = Paragraph::new("\n  Failed to load PR. Press [r] to retry.")
-            .block(Block::default().title(format!(" PR #{} ", pr_number)).borders(Borders::ALL));
+        let error = Paragraph::new("\n  Failed to load PR. Press [r] to retry.").block(
+            Block::default()
+                .title(format!(" PR #{} ", pr_number))
+                .borders(Borders::ALL),
+        );
         frame.render_widget(error, chunks[0]);
     }
 
@@ -646,14 +660,12 @@ fn render_pr_left_panel(frame: &mut Frame, area: Rect, app: &App, pr_number: u64
             Style::default().fg(Color::White)
         };
 
-        let input = Paragraph::new(display_text)
-            .style(input_style)
-            .block(
-                Block::default()
-                    .title(" New Comment ")
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Cyan)),
-            );
+        let input = Paragraph::new(display_text).style(input_style).block(
+            Block::default()
+                .title(" New Comment ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Cyan)),
+        );
         frame.render_widget(input, input_area);
     }
 }
@@ -663,8 +675,11 @@ fn render_pr_description_preview(frame: &mut Frame, area: Rect, app: &App) {
     let pr = match &app.selected_pr {
         Some(pr) => pr,
         None => {
-            let empty = Paragraph::new("  Loading...")
-                .block(Block::default().title(" Description ").borders(Borders::ALL));
+            let empty = Paragraph::new("  Loading...").block(
+                Block::default()
+                    .title(" Description ")
+                    .borders(Borders::ALL),
+            );
             frame.render_widget(empty, area);
             return;
         }
@@ -703,7 +718,9 @@ fn render_pr_comments(frame: &mut Frame, area: Rect, app: &App) {
             .enumerate()
             .map(|(i, comment)| {
                 let author = &comment.user.login;
-                let body_preview = comment.body.as_deref()
+                let body_preview = comment
+                    .body
+                    .as_deref()
                     .unwrap_or("")
                     .lines()
                     .next()
@@ -711,14 +728,20 @@ fn render_pr_comments(frame: &mut Frame, area: Rect, app: &App) {
                 let time = format_relative_time(comment.created_at);
 
                 // Get reactions for this comment
-                let comment_id: u64 = (*comment.id).into();
+                let comment_id: u64 = *comment.id;
                 let reactions_str = format_reactions_summary(&app.pr_comment_reactions, comment_id);
 
                 // Build comment text with reactions on same line if any
                 let text = if reactions_str.is_empty() {
                     format!("  @{} • {} • {}", author, time, truncate(body_preview, 40))
                 } else {
-                    format!("  @{} • {} • {} {}", author, time, truncate(body_preview, 30), reactions_str)
+                    format!(
+                        "  @{} • {} • {} {}",
+                        author,
+                        time,
+                        truncate(body_preview, 30),
+                        reactions_str
+                    )
                 };
 
                 let item = ListItem::new(text);
@@ -744,7 +767,10 @@ fn render_pr_comments(frame: &mut Frame, area: Rect, app: &App) {
 }
 
 /// Format reactions into a compact summary string like "👍2 ❤️1"
-fn format_reactions_summary(reactions_map: &std::collections::HashMap<u64, Vec<crate::github::pull_request::Reaction>>, comment_id: u64) -> String {
+fn format_reactions_summary(
+    reactions_map: &std::collections::HashMap<u64, Vec<crate::github::pull_request::Reaction>>,
+    comment_id: u64,
+) -> String {
     let Some(reactions) = reactions_map.get(&comment_id) else {
         return String::new();
     };
@@ -783,12 +809,14 @@ fn render_pr_workflows_panel(frame: &mut Frame, area: Rect, app: &App) {
         app.pr_workflow_runs
             .iter()
             .map(|run| {
-                let (icon, icon_color) = workflow_status_display(
-                    run.status,
-                    run.conclusion,
-                    app.tick_counter,
+                let (icon, icon_color) =
+                    workflow_status_display(run.status, run.conclusion, app.tick_counter);
+                let text = format!(
+                    " {} {} {}",
+                    icon,
+                    truncate(&run.name, 18),
+                    run.duration_string()
                 );
-                let text = format!(" {} {} {}", icon, truncate(&run.name, 18), run.duration_string());
                 ListItem::new(text).style(Style::default().fg(icon_color))
             })
             .collect()
@@ -830,14 +858,16 @@ fn render_expanded_comment(frame: &mut Frame, app: &App) {
     let body = comment.body.as_deref().unwrap_or("(no content)");
 
     // Get reactions for this comment
-    let comment_id: u64 = (*comment.id).into();
+    let comment_id: u64 = *comment.id;
     let reactions_str = format_reactions_summary(&app.pr_comment_reactions, comment_id);
 
     // Split popup into header, body, and footer
     let inner_area = popup_area.inner(Margin::new(1, 1)); // Account for border
     let header_height = if reactions_str.is_empty() { 2 } else { 3 };
     let footer_height = 2;
-    let body_height = inner_area.height.saturating_sub(header_height + footer_height);
+    let body_height = inner_area
+        .height
+        .saturating_sub(header_height + footer_height);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -857,15 +887,13 @@ fn render_expanded_comment(frame: &mut Frame, app: &App) {
     frame.render_widget(outer_block, popup_area);
 
     // Render header with author and time
-    let mut header_lines: Vec<Line> = vec![
-        Line::from(vec![
-            Span::styled("Author: ", Style::default().fg(Color::Cyan)),
-            Span::raw(format!("@{}", author)),
-            Span::raw("  "),
-            Span::styled("Time: ", Style::default().fg(Color::Cyan)),
-            Span::raw(time),
-        ]),
-    ];
+    let mut header_lines: Vec<Line> = vec![Line::from(vec![
+        Span::styled("Author: ", Style::default().fg(Color::Cyan)),
+        Span::raw(format!("@{}", author)),
+        Span::raw("  "),
+        Span::styled("Time: ", Style::default().fg(Color::Cyan)),
+        Span::raw(time),
+    ])];
     if !reactions_str.is_empty() {
         header_lines.push(Line::from(vec![
             Span::styled("Reactions: ", Style::default().fg(Color::Cyan)),
@@ -881,7 +909,8 @@ fn render_expanded_comment(frame: &mut Frame, app: &App) {
     let markdown_text = markdown_to_text(body);
     // Estimate wrapped line count (rough: chars / width * 1.5 for wrapping overhead)
     let total_chars: usize = markdown_text.lines.iter().map(|l| l.width()).sum();
-    let estimated_lines = (total_chars / chunks[1].width.max(1) as usize).max(markdown_text.lines.len()) + 5;
+    let estimated_lines =
+        (total_chars / chunks[1].width.max(1) as usize).max(markdown_text.lines.len()) + 5;
     let visible_height = chunks[1].height as usize;
     let max_scroll = estimated_lines.saturating_sub(visible_height);
     app.pr_comment_max_scroll.set(max_scroll);
@@ -932,14 +961,20 @@ fn render_expanded_description(frame: &mut Frame, app: &App) {
 
     // Build PR description metadata
     let title = pr.title.as_deref().unwrap_or("(no title)");
-    let author = pr.user.as_ref().map(|u| u.login.as_str()).unwrap_or("unknown");
+    let author = pr
+        .user
+        .as_ref()
+        .map(|u| u.login.as_str())
+        .unwrap_or("unknown");
     let body = pr.body.as_deref().unwrap_or("(no description)");
 
     // Split popup into header, body, and footer
     let inner_area = popup_area.inner(Margin::new(1, 1)); // Account for border
     let header_height = 3;
     let footer_height = 1;
-    let body_height = inner_area.height.saturating_sub(header_height + footer_height);
+    let body_height = inner_area
+        .height
+        .saturating_sub(header_height + footer_height);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -978,7 +1013,8 @@ fn render_expanded_description(frame: &mut Frame, app: &App) {
     let markdown_text = markdown_to_text(body);
     // Estimate wrapped line count (rough: chars / width for wrapping)
     let total_chars: usize = markdown_text.lines.iter().map(|l| l.width()).sum();
-    let estimated_lines = (total_chars / chunks[1].width.max(1) as usize).max(markdown_text.lines.len()) + 5;
+    let estimated_lines =
+        (total_chars / chunks[1].width.max(1) as usize).max(markdown_text.lines.len()) + 5;
     let visible_height = chunks[1].height as usize;
     let max_scroll = estimated_lines.saturating_sub(visible_height);
     app.pr_description_max_scroll.set(max_scroll);
@@ -992,13 +1028,20 @@ fn render_expanded_description(frame: &mut Frame, app: &App) {
 
     // Render footer with scroll indicator
     let footer_text = if max_scroll > 0 {
-        format!("[{}/{}] j/k to scroll  [Esc] Close", scroll + 1, max_scroll + 1)
+        format!(
+            "[{}/{}] j/k to scroll  [Esc] Close",
+            scroll + 1,
+            max_scroll + 1
+        )
     } else {
         "[Esc] Close".to_string()
     };
 
-    let footer = Paragraph::new(Span::styled(footer_text, Style::default().fg(Color::DarkGray)))
-        .style(Style::default().bg(Color::Black));
+    let footer = Paragraph::new(Span::styled(
+        footer_text,
+        Style::default().fg(Color::DarkGray),
+    ))
+    .style(Style::default().bg(Color::Black));
     frame.render_widget(footer, chunks[2]);
 }
 
@@ -1037,7 +1080,10 @@ fn render_reaction_picker(frame: &mut Frame, app: &App) {
         Line::from(""),
         Line::from(spans),
         Line::from(""),
-        Line::from(Span::styled("  [1-4] Select  [Esc] Cancel", Style::default().fg(Color::DarkGray))),
+        Line::from(Span::styled(
+            "  [1-4] Select  [Esc] Cancel",
+            Style::default().fg(Color::DarkGray),
+        )),
     ];
 
     let paragraph = Paragraph::new(lines)
@@ -1160,18 +1206,19 @@ fn render_pr_create(frame: &mut Frame, area: Rect, app: &App) {
         .title(" Description ")
         .borders(Borders::ALL)
         .border_style(body_style);
-    let body_paragraph = Paragraph::new(body_text)
-        .block(body_block)
-        .style(if app.pr_create_body.is_empty() && app.pr_create_field != 3 {
+    let body_paragraph = Paragraph::new(body_text).block(body_block).style(
+        if app.pr_create_body.is_empty() && app.pr_create_field != 3 {
             Style::default().fg(Color::DarkGray)
         } else {
             Style::default()
-        });
+        },
+    );
     frame.render_widget(body_paragraph, body_commits_chunks[0]);
 
     // Commits list - right panel
     let commits_items: Vec<ListItem> = if app.pr_create_commits.is_empty() {
-        vec![ListItem::new("  No commits between branches").style(Style::default().fg(Color::DarkGray))]
+        vec![ListItem::new("  No commits between branches")
+            .style(Style::default().fg(Color::DarkGray))]
     } else {
         app.pr_create_commits
             .iter()
@@ -1204,13 +1251,15 @@ fn render_pr_create(frame: &mut Frame, area: Rect, app: &App) {
         .title(" Draft ")
         .borders(Borders::ALL)
         .border_style(draft_style);
-    let draft_paragraph = Paragraph::new(format!(" {} Create as draft PR", draft_indicator))
-        .block(draft_block);
+    let draft_paragraph =
+        Paragraph::new(format!(" {} Create as draft PR", draft_indicator)).block(draft_block);
     frame.render_widget(draft_paragraph, bottom_chunks[0]);
 
     // Submit button
     let submit_style = if app.pr_create_field == 5 {
-        Style::default().fg(Color::Green).add_modifier(ratatui::style::Modifier::BOLD)
+        Style::default()
+            .fg(Color::Green)
+            .add_modifier(ratatui::style::Modifier::BOLD)
     } else {
         Theme::normal()
     };
@@ -1230,13 +1279,13 @@ fn render_pr_create(frame: &mut Frame, area: Rect, app: &App) {
     // Show AI loading indicator or error
     if app.pr_create_ai_loading {
         let loading_area = Rect::new(area.x + 2, area.y + area.height - 3, area.width - 4, 1);
-        let loading_text = Paragraph::new("Generating with AI...")
-            .style(Style::default().fg(Color::Yellow));
+        let loading_text =
+            Paragraph::new("Generating with AI...").style(Style::default().fg(Color::Yellow));
         frame.render_widget(loading_text, loading_area);
     } else if let Some(error) = &app.pr_create_error {
         let error_area = Rect::new(area.x + 2, area.y + area.height - 3, area.width - 4, 1);
-        let error_text = Paragraph::new(format!("Error: {}", error))
-            .style(Style::default().fg(Color::Red));
+        let error_text =
+            Paragraph::new(format!("Error: {}", error)).style(Style::default().fg(Color::Red));
         frame.render_widget(error_text, error_area);
     }
 
@@ -1251,6 +1300,7 @@ fn render_pr_create(frame: &mut Frame, area: Rect, app: &App) {
 }
 
 /// Render a branch selector dropdown
+#[allow(clippy::too_many_arguments)]
 fn render_branch_selector(
     frame: &mut Frame,
     area: Rect,
@@ -1281,8 +1331,7 @@ fn render_branch_selector(
     }
 
     if branches.is_empty() {
-        let empty = Paragraph::new(format!("  {}", selected_branch))
-            .block(block);
+        let empty = Paragraph::new(format!("  {}", selected_branch)).block(block);
         frame.render_widget(empty, area);
         return;
     }
@@ -1300,7 +1349,9 @@ fn render_branch_selector(
                 let prefix = if i == selection_index { "› " } else { "  " };
                 let suffix = if branch.is_default { " (default)" } else { "" };
                 let style = if i == selection_index {
-                    Style::default().fg(Color::Yellow).add_modifier(ratatui::style::Modifier::BOLD)
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(ratatui::style::Modifier::BOLD)
                 } else if branch.name == selected_branch {
                     Style::default().fg(Color::Green)
                 } else {
@@ -1324,14 +1375,14 @@ fn render_commit_screen(frame: &mut Frame, area: Rect, app: &App) {
     // Split into file list, optional message input/push prompt, and help bar
     let constraints = if app.commit_message_mode || app.commit_push_prompt {
         vec![
-            Constraint::Min(0),      // File list
-            Constraint::Length(3),   // Message input box or push prompt
-            Constraint::Length(1),   // Help bar
+            Constraint::Min(0),    // File list
+            Constraint::Length(3), // Message input box or push prompt
+            Constraint::Length(1), // Help bar
         ]
     } else {
         vec![
-            Constraint::Min(0),      // File list
-            Constraint::Length(1),   // Help bar
+            Constraint::Min(0),    // File list
+            Constraint::Length(1), // Help bar
         ]
     };
 
@@ -1420,14 +1471,12 @@ fn render_commit_screen(frame: &mut Frame, area: Rect, app: &App) {
             Style::default().fg(Color::White)
         };
 
-        let input = Paragraph::new(display_text)
-            .style(input_style)
-            .block(
-                Block::default()
-                    .title(" Commit Message ")
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Cyan)),
-            );
+        let input = Paragraph::new(display_text).style(input_style).block(
+            Block::default()
+                .title(" Commit Message ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Cyan)),
+        );
         frame.render_widget(input, message_area);
     }
 
@@ -1439,14 +1488,23 @@ fn render_commit_screen(frame: &mut Frame, area: Rect, app: &App) {
         let (display_text, border_color) = if app.commit_push_loading {
             (format!("Pushing to {}...", tracking), Color::Yellow)
         } else {
-            let hash = app.last_commit_hash.as_ref()
+            let hash = app
+                .last_commit_hash
+                .as_ref()
                 .map(|h| &h[..7.min(h.len())])
                 .unwrap_or("commit");
-            (format!("✓ {} created. Push to {}?", hash, tracking), Color::Green)
+            (
+                format!("✓ {} created. Push to {}?", hash, tracking),
+                Color::Green,
+            )
         };
 
         let prompt = Paragraph::new(display_text)
-            .style(Style::default().fg(if app.commit_push_loading { Color::Yellow } else { Color::Green }))
+            .style(Style::default().fg(if app.commit_push_loading {
+                Color::Yellow
+            } else {
+                Color::Green
+            }))
             .block(
                 Block::default()
                     .title(" Push to Remote ")
@@ -1457,7 +1515,11 @@ fn render_commit_screen(frame: &mut Frame, area: Rect, app: &App) {
     }
 
     // Help bar (last chunk)
-    let help_area = if app.commit_message_mode || app.commit_push_prompt { chunks[2] } else { chunks[1] };
+    let help_area = if app.commit_message_mode || app.commit_push_prompt {
+        chunks[2]
+    } else {
+        chunks[1]
+    };
     let help_text = if app.commit_push_prompt {
         if app.commit_push_loading {
             "" // No help text during push - status shown in prompt box
@@ -1525,7 +1587,10 @@ fn render_settings(frame: &mut Frame, area: Rect, app: &App) {
     let model_line = Line::from(vec![
         Span::raw(if sel == 2 { " ▶ " } else { "   " }),
         Span::styled("AI Model:    ", Style::default().fg(Color::Cyan)),
-        Span::styled(app.gemini_model.display_name(), Style::default().fg(Color::White)),
+        Span::styled(
+            app.gemini_model.display_name(),
+            Style::default().fg(Color::White),
+        ),
         Span::styled(" (j/k to cycle)", Style::default().fg(Color::DarkGray)),
     ]);
 
@@ -1533,18 +1598,23 @@ fn render_settings(frame: &mut Frame, area: Rect, app: &App) {
     let help_section = if app.settings_input_mode {
         vec![
             Line::from(""),
-            Line::from(Span::styled("  Entering API Key (hidden):", Style::default().fg(Color::Yellow))),
+            Line::from(Span::styled(
+                "  Entering API Key (hidden):",
+                Style::default().fg(Color::Yellow),
+            )),
             Line::from(""),
             Line::from("  Type your Gemini API key, then press Enter to save"),
             Line::from("  Press Esc to cancel"),
         ]
     } else {
         let help_text = match sel {
-            0 => if app.github_authenticated {
-                "  Run: gr auth logout   (to sign out)"
-            } else {
-                "  Run: gr auth login    (to authenticate)"
-            },
+            0 => {
+                if app.github_authenticated {
+                    "  Run: gr auth logout   (to sign out)"
+                } else {
+                    "  Run: gr auth login    (to authenticate)"
+                }
+            }
             1 => "  Press Enter to configure API key",
             2 => "  Press j/k or Enter to cycle through models",
             _ => "",
@@ -1559,7 +1629,10 @@ fn render_settings(frame: &mut Frame, area: Rect, app: &App) {
 
     let mut all_lines: Vec<Line> = vec![
         Line::from(""),
-        Line::from(Span::styled("  Authentication & API Keys", Style::default().add_modifier(ratatui::style::Modifier::BOLD))),
+        Line::from(Span::styled(
+            "  Authentication & API Keys",
+            Style::default().add_modifier(ratatui::style::Modifier::BOLD),
+        )),
         Line::from(""),
         github_line,
         gemini_line,
@@ -1643,11 +1716,8 @@ fn render_workflow_runs(frame: &mut Frame, area: Rect, app: &App) {
             .iter()
             .enumerate()
             .map(|(i, run)| {
-                let (icon, icon_color) = workflow_status_display(
-                    run.status,
-                    run.conclusion,
-                    app.tick_counter,
-                );
+                let (icon, icon_color) =
+                    workflow_status_display(run.status, run.conclusion, app.tick_counter);
 
                 let text = format!(
                     "  {} #{:<4} {:<22} {:<10} {} {:<12} {}",
@@ -1675,7 +1745,11 @@ fn render_workflow_runs(frame: &mut Frame, area: Rect, app: &App) {
         if app.workflow_runs.is_empty() {
             format!(" Workflow Runs (branch: {}) ", branch)
         } else {
-            format!(" Workflow Runs ({}) - branch: {} ", app.workflow_runs.len(), branch)
+            format!(
+                " Workflow Runs ({}) - branch: {} ",
+                app.workflow_runs.len(),
+                branch
+            )
         }
     } else if app.workflow_runs.is_empty() {
         " Workflow Runs ".to_string()
@@ -1698,8 +1772,11 @@ fn render_workflow_runs(frame: &mut Frame, area: Rect, app: &App) {
 
 /// Render a placeholder screen
 fn render_placeholder(frame: &mut Frame, area: Rect, title: &str, message: &str) {
-    let paragraph = Paragraph::new(format!("\n  {}", message))
-        .block(Block::default().title(format!(" {} ", title)).borders(Borders::ALL));
+    let paragraph = Paragraph::new(format!("\n  {}", message)).block(
+        Block::default()
+            .title(format!(" {} ", title))
+            .borders(Borders::ALL),
+    );
     frame.render_widget(paragraph, area);
 }
 

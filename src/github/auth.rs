@@ -142,9 +142,12 @@ impl OAuthTokenData {
             .map_err(|e| GhrustError::Config(format!("Invalid token expiration date: {}", e)))?
             .with_timezone(&Utc);
 
-        let refresh_token_expires_at = DateTime::parse_from_rfc3339(&stored.refresh_token_expires_at)
-            .map_err(|e| GhrustError::Config(format!("Invalid refresh token expiration date: {}", e)))?
-            .with_timezone(&Utc);
+        let refresh_token_expires_at =
+            DateTime::parse_from_rfc3339(&stored.refresh_token_expires_at)
+                .map_err(|e| {
+                    GhrustError::Config(format!("Invalid refresh token expiration date: {}", e))
+                })?
+                .with_timezone(&Utc);
 
         Ok(Self {
             access_token: SecretString::from(stored.access_token),
@@ -283,7 +286,8 @@ impl DeviceFlowAuth {
                         token_type: token_response.token_type,
                         scope: token_response.scope,
                         expires_at: now + chrono::Duration::seconds(expires_in as i64),
-                        refresh_token_expires_at: now + chrono::Duration::seconds(refresh_expires_in as i64),
+                        refresh_token_expires_at: now
+                            + chrono::Duration::seconds(refresh_expires_in as i64),
                     });
                 }
 
@@ -366,7 +370,8 @@ impl DeviceFlowAuth {
                     token_type: token_response.token_type,
                     scope: token_response.scope,
                     expires_at: now + chrono::Duration::seconds(expires_in as i64),
-                    refresh_token_expires_at: now + chrono::Duration::seconds(refresh_expires_in as i64),
+                    refresh_token_expires_at: now
+                        + chrono::Duration::seconds(refresh_expires_in as i64),
                 });
             }
         }
@@ -376,7 +381,9 @@ impl DeviceFlowAuth {
             return Err(GhrustError::TokenRefreshFailed(error_response.error));
         }
 
-        Err(GhrustError::TokenRefreshFailed("Invalid response from GitHub".to_string()))
+        Err(GhrustError::TokenRefreshFailed(
+            "Invalid response from GitHub".to_string(),
+        ))
     }
 }
 

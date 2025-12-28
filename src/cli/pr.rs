@@ -15,17 +15,28 @@ use crate::github::{BranchHandler, GitHubClient};
 /// Handle pull request commands
 pub async fn handle_pr(command: PrCommand) -> Result<()> {
     match command {
-        PrCommand::List { state, author, limit } => {
-            handle_list(state, author, limit).await
-        }
-        PrCommand::Create { head, base, title, body, draft, ai } => {
-            handle_create(head, base, title, body, draft, ai).await
-        }
+        PrCommand::List {
+            state,
+            author,
+            limit,
+        } => handle_list(state, author, limit).await,
+        PrCommand::Create {
+            head,
+            base,
+            title,
+            body,
+            draft,
+            ai,
+        } => handle_create(head, base, title, body, draft, ai).await,
         PrCommand::View { number } => handle_view(number).await,
         PrCommand::Comment { number, text } => handle_comment(number, text).await,
-        PrCommand::Merge { number, merge, squash, rebase, delete } => {
-            handle_merge(number, merge, squash, rebase, delete).await
-        }
+        PrCommand::Merge {
+            number,
+            merge,
+            squash,
+            rebase,
+            delete,
+        } => handle_merge(number, merge, squash, rebase, delete).await,
     }
 }
 
@@ -38,11 +49,7 @@ fn convert_state(state: CliPrState) -> PrState {
     }
 }
 
-async fn handle_list(
-    state: CliPrState,
-    author: Option<String>,
-    limit: usize,
-) -> Result<()> {
+async fn handle_list(state: CliPrState, author: Option<String>, limit: usize) -> Result<()> {
     let repo_ctx = RepositoryContext::detect()?;
     let client = GitHubClient::new(repo_ctx.owner.clone(), repo_ctx.name.clone()).await?;
     let handler = PullRequestHandler::new(&client);
@@ -63,8 +70,16 @@ async fn handle_list(
             Some(octocrab::models::IssueState::Open) => "●",
             _ => "○",
         };
-        let draft_marker = if pr.draft.unwrap_or(false) { " [draft]" } else { "" };
-        let author_name = pr.user.as_ref().map(|u| u.login.as_str()).unwrap_or("unknown");
+        let draft_marker = if pr.draft.unwrap_or(false) {
+            " [draft]"
+        } else {
+            ""
+        };
+        let author_name = pr
+            .user
+            .as_ref()
+            .map(|u| u.login.as_str())
+            .unwrap_or("unknown");
 
         println!(
             "{} #{} {} {}",
@@ -73,10 +88,9 @@ async fn handle_list(
             pr.title.as_deref().unwrap_or("(no title)"),
             draft_marker
         );
-        println!("   by @{} • {} → {}",
-            author_name,
-            pr.head.ref_field,
-            pr.base.ref_field
+        println!(
+            "   by @{} • {} → {}",
+            author_name, pr.head.ref_field, pr.base.ref_field
         );
 
         if let Some(updated) = pr.updated_at {
@@ -114,7 +128,7 @@ async fn handle_create(
     } else {
         // For now, require title via --title flag
         return Err(GhrustError::InvalidInput(
-            "Please provide a title with --title or use --ai to auto-generate".to_string()
+            "Please provide a title with --title or use --ai to auto-generate".to_string(),
         ));
     };
 
@@ -131,7 +145,10 @@ async fn handle_create(
 
     println!("\n✓ Pull request created successfully!");
     println!("  #{}: {}", pr.number, pr.title.as_deref().unwrap_or(""));
-    println!("  URL: {}", pr.html_url.map(|u| u.to_string()).unwrap_or_default());
+    println!(
+        "  URL: {}",
+        pr.html_url.map(|u| u.to_string()).unwrap_or_default()
+    );
 
     Ok(())
 }
@@ -148,7 +165,7 @@ async fn generate_ai_pr_content(head: &str, base: &str) -> Result<(String, Optio
 
     if diff.is_empty() {
         return Err(GhrustError::InvalidInput(
-            "No changes to generate PR content from".to_string()
+            "No changes to generate PR content from".to_string(),
         ));
     }
 
@@ -195,8 +212,17 @@ async fn handle_view(number: u64) -> Result<()> {
         Some(octocrab::models::IssueState::Closed) => "closed",
         _ => "unknown",
     };
-    let draft = if pr.draft.unwrap_or(false) { " [DRAFT]" } else { "" };
-    println!("#{} {}{}", pr.number, pr.title.as_deref().unwrap_or(""), draft);
+    let draft = if pr.draft.unwrap_or(false) {
+        " [DRAFT]"
+    } else {
+        ""
+    };
+    println!(
+        "#{} {}{}",
+        pr.number,
+        pr.title.as_deref().unwrap_or(""),
+        draft
+    );
     println!("State: {}", state);
     println!("{} → {}", pr.head.ref_field, pr.base.ref_field);
 
@@ -222,7 +248,10 @@ async fn handle_view(number: u64) -> Result<()> {
         }
     }
 
-    println!("\nURL: {}", pr.html_url.map(|u| u.to_string()).unwrap_or_default());
+    println!(
+        "\nURL: {}",
+        pr.html_url.map(|u| u.to_string()).unwrap_or_default()
+    );
 
     Ok(())
 }

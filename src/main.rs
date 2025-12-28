@@ -20,12 +20,9 @@ use argo_rs::tui::App;
 #[tokio::main]
 async fn main() {
     // Initialize logging
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("warn"));
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn"));
 
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .init();
+    tracing_subscriber::fmt().with_env_filter(filter).init();
 
     if let Err(e) = run().await {
         handle_error(e).await;
@@ -42,7 +39,10 @@ async fn handle_error(e: GhrustError) {
                 eprintln!();
                 eprintln!("Cannot access '{}/{}'.", ctx.owner, ctx.name);
                 eprintln!();
-                eprintln!("This may be because '{}' is an organization with OAuth app restrictions.", ctx.owner);
+                eprintln!(
+                    "This may be because '{}' is an organization with OAuth app restrictions.",
+                    ctx.owner
+                );
                 eprintln!();
 
                 // Offer to authenticate with PAT

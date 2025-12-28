@@ -84,7 +84,10 @@ pub fn parse_github_url(url: &str) -> Result<(String, String)> {
     // Try to parse HTTPS format
     if let Ok(parsed) = Url::parse(url) {
         if parsed.host_str() == Some("github.com") {
-            let path = parsed.path().trim_start_matches('/').trim_end_matches(".git");
+            let path = parsed
+                .path()
+                .trim_start_matches('/')
+                .trim_end_matches(".git");
             return parse_owner_repo_path(path);
         }
     }

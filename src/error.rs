@@ -32,7 +32,9 @@ pub enum GhrustError {
     AuthenticationExpired,
 
     /// Access token expired and refresh token also expired
-    #[error("Your GitHub session has fully expired.\n\n  → Run 'gr auth login' to authenticate again.")]
+    #[error(
+        "Your GitHub session has fully expired.\n\n  → Run 'gr auth login' to authenticate again."
+    )]
     TokenRefreshExpired,
 
     /// Token refresh failed with specific reason
@@ -44,13 +46,15 @@ pub enum GhrustError {
     GitHubApi(String),
 
     /// Organization has not installed the GitHub App
-    #[error("Access denied to the '{org_name}' organization.\n\n  \
+    #[error(
+        "Access denied to the '{org_name}' organization.\n\n  \
         The argo-rs app is not installed on this organization.\n\n  \
         To install:\n  \
         1. Visit: {install_url}\n  \
         2. Select the '{org_name}' organization\n  \
         3. Click 'Install'\n\n  \
-        Or use a Personal Access Token: gr auth login --pat")]
+        Or use a Personal Access Token: gr auth login --pat"
+    )]
     OrgAccessRestricted {
         /// Organization name extracted from the error
         org_name: String,
@@ -59,13 +63,15 @@ pub enum GhrustError {
     },
 
     /// Repository not found or no access (may need app installation)
-    #[error("Cannot access repository '{owner}/{repo}'.\n\n  \
+    #[error(
+        "Cannot access repository '{owner}/{repo}'.\n\n  \
         This could mean:\n  \
         1. The repository doesn't exist\n  \
         2. You don't have access to this private repository\n  \
         3. The argo-rs app is not installed on '{owner}'\n\n  \
         To install the app:\n  \
-        Visit: {install_url}")]
+        Visit: {install_url}"
+    )]
     RepoAccessDenied {
         owner: String,
         repo: String,
@@ -117,7 +123,9 @@ pub enum GhrustError {
     PullRequestNotFound(u64),
 
     /// Branch not found
-    #[error("Branch '{0}' not found on remote.\n\n  → Run 'gr branch list' to see available branches.")]
+    #[error(
+        "Branch '{0}' not found on remote.\n\n  → Run 'gr branch list' to see available branches."
+    )]
     BranchNotFound(String),
 
     /// Merge conflict

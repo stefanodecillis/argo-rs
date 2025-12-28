@@ -5,9 +5,9 @@
 
 pub mod app;
 pub mod event;
-pub mod ui;
-pub mod theme;
 pub mod screens;
+pub mod theme;
+pub mod ui;
 pub mod widgets;
 
 pub use app::App;

@@ -17,18 +17,11 @@ use crate::github::pull_request::PullRequestHandler;
 #[derive(Debug, Clone)]
 pub enum GitHubEvent {
     /// New comments on a PR
-    NewComments {
-        pr_number: u64,
-        count: usize,
-    },
+    NewComments { pr_number: u64, count: usize },
     /// PR was updated (state change, new commits, etc.)
-    PrUpdated {
-        pr_number: u64,
-    },
+    PrUpdated { pr_number: u64 },
     /// PR list refreshed
-    PrListRefreshed {
-        count: usize,
-    },
+    PrListRefreshed { count: usize },
     /// Polling error occurred
     Error(String),
 }

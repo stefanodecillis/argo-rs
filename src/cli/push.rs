@@ -10,7 +10,9 @@ pub async fn handle_push(args: PushArgs) -> Result<()> {
     let branch = git.current_branch()?;
 
     // Show what we're doing
-    let tracking = git.tracking_branch()?.unwrap_or_else(|| format!("origin/{}", branch));
+    let tracking = git
+        .tracking_branch()?
+        .unwrap_or_else(|| format!("origin/{}", branch));
     let (ahead, behind) = git.branch_status()?;
 
     println!("On branch {} → {}", branch, tracking);

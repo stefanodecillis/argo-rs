@@ -255,7 +255,7 @@ fn extract_json_field(json: &str, field: &str) -> Option<String> {
         let mut value = String::new();
         let mut escaped = false;
 
-        while let Some(c) = chars.next() {
+        for c in chars.by_ref() {
             if escaped {
                 value.push(c);
                 escaped = false;

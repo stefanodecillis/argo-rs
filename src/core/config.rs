@@ -48,7 +48,7 @@ impl GeminiModel {
     }
 
     /// Parse from string
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s {
             "gemini-2.0-flash" => Some(GeminiModel::Gemini20Flash),
             "gemini-2.5-flash" => Some(GeminiModel::Gemini25Flash),
@@ -74,7 +74,7 @@ impl std::fmt::Display for GeminiModel {
 }
 
 /// Application configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// Selected Gemini model for AI features
     #[serde(default)]
@@ -87,6 +87,15 @@ pub struct Config {
 
 fn default_poll_interval() -> u64 {
     30
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            gemini_model: GeminiModel::default(),
+            poll_interval_secs: default_poll_interval(),
+        }
+    }
 }
 
 impl Config {
@@ -147,18 +156,18 @@ mod tests {
     #[test]
     fn test_gemini_model_from_str() {
         assert_eq!(
-            GeminiModel::from_str("gemini-2.0-flash"),
+            GeminiModel::parse("gemini-2.0-flash"),
             Some(GeminiModel::Gemini20Flash)
         );
         assert_eq!(
-            GeminiModel::from_str("gemini-2.5-flash"),
+            GeminiModel::parse("gemini-2.5-flash"),
             Some(GeminiModel::Gemini25Flash)
         );
         assert_eq!(
-            GeminiModel::from_str("gemini-3-flash-preview"),
+            GeminiModel::parse("gemini-3-flash-preview"),
             Some(GeminiModel::Gemini3FlashPreview)
         );
-        assert_eq!(GeminiModel::from_str("invalid"), None);
+        assert_eq!(GeminiModel::parse("invalid"), None);
     }
 
     #[test]

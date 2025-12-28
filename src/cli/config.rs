@@ -22,7 +22,7 @@ fn handle_set(key: ConfigKey, value: String) -> Result<()> {
             println!("Gemini API key has been stored securely.");
         }
         ConfigKey::GeminiModel => {
-            let model = GeminiModel::from_str(&value).ok_or_else(|| {
+            let model = GeminiModel::parse(&value).ok_or_else(|| {
                 GhrustError::InvalidInput(format!(
                     "Invalid model '{}'. Available models: {}",
                     value,

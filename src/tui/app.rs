@@ -23,7 +23,9 @@ use crate::core::repository::RepositoryContext;
 use crate::error::{GhrustError, Result};
 use crate::github::branch::{BranchHandler, BranchInfo};
 use crate::github::client::GitHubClient;
-use crate::github::pull_request::{CreatePrParams, PrState, PullRequestHandler, Reaction, ReactionType};
+use crate::github::pull_request::{
+    CreatePrParams, PrState, PullRequestHandler, Reaction, ReactionType,
+};
 use crate::github::workflow::{WorkflowHandler, WorkflowRunInfo};
 use crate::tui::event::{is_back_key, is_quit_key, AppEvent, EventHandler};
 use crate::tui::ui;
@@ -84,7 +86,10 @@ pub enum AsyncMessage {
     /// Comment reactions loaded (comment_id -> reactions)
     CommentReactionsLoaded(HashMap<u64, Vec<Reaction>>),
     /// Reaction added to a comment
-    ReactionAdded { comment_id: u64, reaction: Reaction },
+    ReactionAdded {
+        comment_id: u64,
+        reaction: Box<Reaction>,
+    },
     /// Reaction add failed
     ReactionAddError(String),
     /// Reaction removed from a comment
@@ -427,11 +432,9 @@ impl App {
     fn setup_terminal() -> Result<Terminal<CrosstermBackend<Stdout>>> {
         enable_raw_mode().map_err(|e| GhrustError::Terminal(e.to_string()))?;
         let mut stdout = io::stdout();
-        execute!(stdout, EnterAlternateScreen)
-            .map_err(|e| GhrustError::Terminal(e.to_string()))?;
+        execute!(stdout, EnterAlternateScreen).map_err(|e| GhrustError::Terminal(e.to_string()))?;
         let backend = CrosstermBackend::new(stdout);
-        let terminal =
-            Terminal::new(backend).map_err(|e| GhrustError::Terminal(e.to_string()))?;
+        let terminal = Terminal::new(backend).map_err(|e| GhrustError::Terminal(e.to_string()))?;
         Ok(terminal)
     }
 
@@ -497,7 +500,8 @@ impl App {
                 if self.pr_list.is_empty() {
                     self.status_message = Some("No open pull requests".to_string());
                 } else {
-                    self.status_message = Some(format!("Loaded {} pull requests", self.pr_list.len()));
+                    self.status_message =
+                        Some(format!("Loaded {} pull requests", self.pr_list.len()));
                 }
             }
             AsyncMessage::PrListError(err) => {
@@ -505,8 +509,7 @@ impl App {
                 self.pr_list_fetched = true;
 
                 // Check if this is a "not found" error that might need org authorization
-                let is_not_found = err.to_lowercase().contains("not found")
-                    || err.contains("404");
+                let is_not_found = err.to_lowercase().contains("not found") || err.contains("404");
 
                 if is_not_found {
                     if let Some(repo) = &self.repository {
@@ -519,10 +522,8 @@ impl App {
                               Run: gr auth logout && gr auth login --pat",
                             repo.owner, repo.name, repo.owner
                         ));
-                        self.status_message = Some(format!(
-                            "Opening app install page for '{}'",
-                            repo.owner
-                        ));
+                        self.status_message =
+                            Some(format!("Opening app install page for '{}'", repo.owner));
                         // Auto-open the GitHub App installation page
                         let _ = crate::github::error_handler::open_browser(&install_url);
                     } else {
@@ -563,7 +564,8 @@ impl App {
                         self.pr_create_base_selection.selected = i;
                     }
                 }
-                self.status_message = Some(format!("Loaded {} branches", self.pr_create_branches.len()));
+                self.status_message =
+                    Some(format!("Loaded {} branches", self.pr_create_branches.len()));
             }
             AsyncMessage::BranchesError(err) => {
                 self.pr_create_loading = false;
@@ -597,7 +599,9 @@ impl App {
                 self.commit_ai_loading = false;
                 self.commit_message = message;
                 self.commit_message_mode = true;
-                self.status_message = Some("AI generated message (Enter to commit, Ctrl+g to regenerate)".to_string());
+                self.status_message = Some(
+                    "AI generated message (Enter to commit, Ctrl+g to regenerate)".to_string(),
+                );
             }
             AsyncMessage::AiCommitMessageError(err) => {
                 self.commit_ai_loading = false;
@@ -687,21 +691,27 @@ impl App {
             AsyncMessage::CommentReactionsLoaded(reactions) => {
                 self.pr_comment_reactions = reactions;
             }
-            AsyncMessage::ReactionAdded { comment_id, reaction } => {
+            AsyncMessage::ReactionAdded {
+                comment_id,
+                reaction,
+            } => {
                 self.reaction_submitting = false;
                 self.reaction_picker_open = false;
                 // Add reaction to local state
                 self.pr_comment_reactions
                     .entry(comment_id)
                     .or_default()
-                    .push(reaction);
+                    .push(*reaction);
                 self.status_message = Some("Reaction added!".to_string());
             }
             AsyncMessage::ReactionAddError(err) => {
                 self.reaction_submitting = false;
                 self.status_message = Some(format!("Reaction failed: {}", err));
             }
-            AsyncMessage::ReactionRemoved { comment_id, reaction_id } => {
+            AsyncMessage::ReactionRemoved {
+                comment_id,
+                reaction_id,
+            } => {
                 self.reaction_submitting = false;
                 // Remove reaction from local state
                 if let Some(reactions) = self.pr_comment_reactions.get_mut(&comment_id) {
@@ -814,8 +824,8 @@ impl App {
                 // Fetch reactions for each comment
                 let mut reactions_map: HashMap<u64, Vec<Reaction>> = HashMap::new();
                 for comment in &comments {
-                    if let Ok(reactions) = handler.list_comment_reactions((*comment.id).into()).await {
-                        reactions_map.insert((*comment.id).into(), reactions);
+                    if let Ok(reactions) = handler.list_comment_reactions(*comment.id).await {
+                        reactions_map.insert(*comment.id, reactions);
                     }
                 }
 
@@ -826,7 +836,9 @@ impl App {
             match result {
                 Ok((comments, reactions)) => {
                     let _ = tx.send(AsyncMessage::PrCommentsLoaded(comments)).await;
-                    let _ = tx.send(AsyncMessage::CommentReactionsLoaded(reactions)).await;
+                    let _ = tx
+                        .send(AsyncMessage::CommentReactionsLoaded(reactions))
+                        .await;
                 }
                 Err(e) => {
                     let _ = tx.send(AsyncMessage::PrCommentsError(e.to_string())).await;
@@ -877,7 +889,9 @@ impl App {
                         .await;
                 }
                 Err(e) => {
-                    let _ = tx.send(AsyncMessage::PrCommentAddError(e.to_string())).await;
+                    let _ = tx
+                        .send(AsyncMessage::PrCommentAddError(e.to_string()))
+                        .await;
                 }
             }
         });
@@ -895,7 +909,7 @@ impl App {
             None => return,
         };
 
-        let comment_id: u64 = (*comment.id).into();
+        let comment_id: u64 = *comment.id;
 
         let repo = match &self.repository {
             Some(r) => r.clone(),
@@ -911,14 +925,19 @@ impl App {
             let result = async {
                 let client = GitHubClient::new(repo.owner.clone(), repo.name.clone()).await?;
                 let handler = PullRequestHandler::new(&client);
-                handler.add_comment_reaction(comment_id, reaction_type).await
+                handler
+                    .add_comment_reaction(comment_id, reaction_type)
+                    .await
             }
             .await;
 
             match result {
                 Ok(reaction) => {
                     let _ = tx
-                        .send(AsyncMessage::ReactionAdded { comment_id, reaction })
+                        .send(AsyncMessage::ReactionAdded {
+                            comment_id,
+                            reaction: Box::new(reaction),
+                        })
                         .await;
                 }
                 Err(e) => {
@@ -941,7 +960,7 @@ impl App {
             None => return,
         };
 
-        let _comment_id: u64 = (*comment.id).into();
+        let _comment_id: u64 = *comment.id;
 
         // Check if we already have this reaction (need to find our own reaction)
         // For now, we'll just add the reaction - GitHub API handles duplicates
@@ -983,7 +1002,9 @@ impl App {
                     let _ = tx.send(AsyncMessage::PrWorkflowRunsLoaded(runs)).await;
                 }
                 Err(e) => {
-                    let _ = tx.send(AsyncMessage::PrWorkflowRunsError(e.to_string())).await;
+                    let _ = tx
+                        .send(AsyncMessage::PrWorkflowRunsError(e.to_string()))
+                        .await;
                 }
             }
         });
@@ -1042,7 +1063,9 @@ impl App {
                         .await;
                 }
                 Err(e) => {
-                    let _ = tx.send(AsyncMessage::WorkflowRunsError(e.to_string())).await;
+                    let _ = tx
+                        .send(AsyncMessage::WorkflowRunsError(e.to_string()))
+                        .await;
                 }
             }
         });
@@ -1074,7 +1097,9 @@ impl App {
         // With 250ms tick rate: 28 ticks ≈ 7 seconds
         const POLL_INTERVAL_TICKS: u64 = 28;
 
-        let ticks_since_poll = self.tick_counter.wrapping_sub(self.workflow_runs_last_poll_tick);
+        let ticks_since_poll = self
+            .tick_counter
+            .wrapping_sub(self.workflow_runs_last_poll_tick);
 
         if ticks_since_poll >= POLL_INTERVAL_TICKS {
             // Store the current selection for restoration after refresh
@@ -1180,17 +1205,15 @@ impl App {
         match key.code {
             KeyCode::Char('j') | KeyCode::Down => self.dashboard_selection.next(),
             KeyCode::Char('k') | KeyCode::Up => self.dashboard_selection.previous(),
-            KeyCode::Enter => {
-                match self.dashboard_selection.selected {
-                    0 => self.navigate_to(Screen::PrList),
-                    1 => self.navigate_to(Screen::PrCreate),
-                    2 => self.navigate_to(Screen::Commit),
-                    3 => self.navigate_to(Screen::WorkflowRuns),
-                    4 => self.navigate_to(Screen::Settings),
-                    5 => self.quit(),
-                    _ => {}
-                }
-            }
+            KeyCode::Enter => match self.dashboard_selection.selected {
+                0 => self.navigate_to(Screen::PrList),
+                1 => self.navigate_to(Screen::PrCreate),
+                2 => self.navigate_to(Screen::Commit),
+                3 => self.navigate_to(Screen::WorkflowRuns),
+                4 => self.navigate_to(Screen::Settings),
+                5 => self.quit(),
+                _ => {}
+            },
             KeyCode::Char('p') => self.navigate_to(Screen::PrList),
             KeyCode::Char('c') => self.navigate_to(Screen::Commit),
             KeyCode::Char('w') => self.navigate_to(Screen::WorkflowRuns),
@@ -1254,14 +1277,20 @@ impl App {
                 match self.pr_create_field {
                     1 => {
                         // Head branch - select current item
-                        if let Some(branch) = self.pr_create_branches.get(self.pr_create_head_selection.selected) {
+                        if let Some(branch) = self
+                            .pr_create_branches
+                            .get(self.pr_create_head_selection.selected)
+                        {
                             self.pr_create_head = branch.name.clone();
                             self.update_pr_commits();
                         }
                     }
                     2 => {
                         // Base branch - select current item
-                        if let Some(branch) = self.pr_create_branches.get(self.pr_create_base_selection.selected) {
+                        if let Some(branch) = self
+                            .pr_create_branches
+                            .get(self.pr_create_base_selection.selected)
+                        {
                             self.pr_create_base = branch.name.clone();
                             self.update_pr_commits();
                         }
@@ -1378,7 +1407,7 @@ impl App {
                                     if i == row {
                                         let col = col.min(line.len());
                                         if col > 0 {
-                                            new_body.push_str(&line[..col-1]);
+                                            new_body.push_str(&line[..col - 1]);
                                             new_body.push_str(&line[col..]);
                                         } else {
                                             new_body.push_str(line);
@@ -1395,7 +1424,8 @@ impl App {
                             } else if row > 0 {
                                 // Join with previous line
                                 let mut new_body = String::new();
-                                let prev_line_len = lines.get(row - 1).map(|l| l.len()).unwrap_or(0);
+                                let prev_line_len =
+                                    lines.get(row - 1).map(|l| l.len()).unwrap_or(0);
                                 for (i, line) in lines.iter().enumerate() {
                                     if i == row - 1 {
                                         new_body.push_str(line);
@@ -1433,15 +1463,13 @@ impl App {
                 }
             }
             // Character input for text fields, or 'a' for AI generation
-            KeyCode::Char(c) => {
-                match self.pr_create_field {
-                    0 => self.pr_create_title.push(c),
-                    3 => {
-                        self.insert_char_at_body_cursor(c);
-                    }
-                    _ => {}
+            KeyCode::Char(c) => match self.pr_create_field {
+                0 => self.pr_create_title.push(c),
+                3 => {
+                    self.insert_char_at_body_cursor(c);
                 }
-            }
+                _ => {}
+            },
             _ => {}
         }
     }
@@ -1503,7 +1531,8 @@ impl App {
                     self.reaction_picker_selection = (self.reaction_picker_selection + 1) % 4;
                 }
                 KeyCode::Char('k') | KeyCode::Up => {
-                    self.reaction_picker_selection = (self.reaction_picker_selection + 3) % 4; // +3 = -1 mod 4
+                    self.reaction_picker_selection = (self.reaction_picker_selection + 3) % 4;
+                    // +3 = -1 mod 4
                 }
                 KeyCode::Enter => {
                     // Add the selected reaction
@@ -1636,7 +1665,8 @@ impl App {
             KeyCode::Char('c') => {
                 self.pr_comment_input_mode = true;
                 self.pr_comment_text.clear();
-                self.status_message = Some("Enter comment (Enter to submit, Esc to cancel)".to_string());
+                self.status_message =
+                    Some("Enter comment (Enter to submit, Esc to cancel)".to_string());
             }
             KeyCode::Char('w') => {
                 // Navigate to PR-specific workflows (full screen)
@@ -1702,7 +1732,11 @@ impl App {
                 }
                 KeyCode::Char(c) => {
                     // Ctrl+g regenerates AI message
-                    if c == 'g' && key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
+                    if c == 'g'
+                        && key
+                            .modifiers
+                            .contains(crossterm::event::KeyModifiers::CONTROL)
+                    {
                         self.generate_ai_commit_message();
                     } else {
                         self.commit_message.push(c);
@@ -1728,7 +1762,8 @@ impl App {
                     self.commit_message.clear();
                     self.status_message = Some("Enter commit message...".to_string());
                 } else {
-                    self.status_message = Some("Stage files first (Space to toggle, 'a' to stage all)".to_string());
+                    self.status_message =
+                        Some("Stage files first (Space to toggle, 'a' to stage all)".to_string());
                 }
             }
             KeyCode::Char('g') => {
@@ -1737,7 +1772,8 @@ impl App {
                 if has_staged {
                     self.generate_ai_commit_message();
                 } else {
-                    self.status_message = Some("Stage files first before generating message".to_string());
+                    self.status_message =
+                        Some("Stage files first before generating message".to_string());
                 }
             }
             _ => {}
@@ -1803,7 +1839,8 @@ impl App {
                         // Gemini API key - enter input mode
                         self.settings_input_mode = true;
                         self.settings_api_key_input.clear();
-                        self.status_message = Some("Enter API key (hidden) then press Enter".to_string());
+                        self.status_message =
+                            Some("Enter API key (hidden) then press Enter".to_string());
                     }
                     2 => {
                         // Cycle through models
@@ -1843,7 +1880,10 @@ impl App {
     /// Cycle to the next Gemini model and save
     fn cycle_gemini_model(&mut self) {
         let models = GeminiModel::all();
-        let current_idx = models.iter().position(|m| *m == self.gemini_model).unwrap_or(0);
+        let current_idx = models
+            .iter()
+            .position(|m| *m == self.gemini_model)
+            .unwrap_or(0);
         let next_idx = (current_idx + 1) % models.len();
         self.gemini_model = models[next_idx];
 
@@ -1854,7 +1894,8 @@ impl App {
                 if let Err(e) = config.save() {
                     self.status_message = Some(format!("Error saving config: {}", e));
                 } else {
-                    self.status_message = Some(format!("Model: {}", self.gemini_model.display_name()));
+                    self.status_message =
+                        Some(format!("Model: {}", self.gemini_model.display_name()));
                 }
             }
             Err(e) => {
@@ -2005,7 +2046,8 @@ impl App {
 
         if self.pr_create_head == self.pr_create_base {
             self.pr_create_error = Some("Head and base branches must be different".to_string());
-            self.status_message = Some("Error: Head and base branches must be different".to_string());
+            self.status_message =
+                Some("Error: Head and base branches must be different".to_string());
             return;
         }
 
@@ -2085,7 +2127,8 @@ impl App {
             let result = async {
                 // Get diff between branches
                 let git = GitRepository::open_current_dir()?;
-                let diff = git.branch_diff(&base, &head)
+                let diff = git
+                    .branch_diff(&base, &head)
                     .or_else(|_| git.all_changes_diff())?;
 
                 // Get commit messages for context
@@ -2097,7 +2140,11 @@ impl App {
                 } else {
                     format!(
                         "Commits:\n{}\n\nDiff:\n{}",
-                        commits.iter().map(|c| format!("- {}", c)).collect::<Vec<_>>().join("\n"),
+                        commits
+                            .iter()
+                            .map(|c| format!("- {}", c))
+                            .collect::<Vec<_>>()
+                            .join("\n"),
                         diff
                     )
                 };
@@ -2110,10 +2157,12 @@ impl App {
 
             match result {
                 Ok(content) => {
-                    let _ = tx.send(AsyncMessage::AiContentGenerated {
-                        title: content.title,
-                        body: content.body,
-                    }).await;
+                    let _ = tx
+                        .send(AsyncMessage::AiContentGenerated {
+                            title: content.title,
+                            body: content.body,
+                        })
+                        .await;
                 }
                 Err(e) => {
                     let _ = tx.send(AsyncMessage::AiContentError(e.to_string())).await;
@@ -2221,10 +2270,14 @@ impl App {
 
             match result {
                 Ok(message) => {
-                    let _ = tx.send(AsyncMessage::AiCommitMessageGenerated(message)).await;
+                    let _ = tx
+                        .send(AsyncMessage::AiCommitMessageGenerated(message))
+                        .await;
                 }
                 Err(e) => {
-                    let _ = tx.send(AsyncMessage::AiCommitMessageError(e.to_string())).await;
+                    let _ = tx
+                        .send(AsyncMessage::AiCommitMessageError(e.to_string()))
+                        .await;
                 }
             }
         });
@@ -2255,7 +2308,8 @@ impl App {
 
                     // Get tracking branch for push prompt
                     let branch = repo.current_branch().unwrap_or_else(|_| "main".to_string());
-                    let tracking = repo.tracking_branch()
+                    let tracking = repo
+                        .tracking_branch()
                         .ok()
                         .flatten()
                         .unwrap_or_else(|| format!("origin/{}", branch));
@@ -2278,7 +2332,9 @@ impl App {
 
     /// Push to origin after commit
     fn do_push(&mut self) {
-        let tracking = self.commit_tracking_branch.clone()
+        let tracking = self
+            .commit_tracking_branch
+            .clone()
             .unwrap_or_else(|| "origin".to_string());
 
         self.commit_push_loading = true;
@@ -2295,7 +2351,8 @@ impl App {
                 let repo = GitRepository::open_current_dir()?;
                 repo.push(false)?;
                 Ok::<_, crate::error::GhrustError>(())
-            }).await;
+            })
+            .await;
 
             let message = match result {
                 Ok(Ok(())) => AsyncMessage::PushCompleted(tracking_clone),

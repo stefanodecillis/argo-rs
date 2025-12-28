@@ -13,7 +13,9 @@ pub async fn handle_commit(args: CommitArgs) -> Result<()> {
 
     // Show branch info
     let branch = git.current_branch()?;
-    let tracking = git.tracking_branch()?.unwrap_or_else(|| format!("origin/{}", branch));
+    let tracking = git
+        .tracking_branch()?
+        .unwrap_or_else(|| format!("origin/{}", branch));
     println!("On branch {} → {}", branch, tracking);
 
     // Stage all if requested
@@ -55,7 +57,7 @@ pub async fn handle_commit(args: CommitArgs) -> Result<()> {
         msg
     } else {
         return Err(GhrustError::InvalidInput(
-            "Please provide a message with -m or use --ai to auto-generate".to_string()
+            "Please provide a message with -m or use --ai to auto-generate".to_string(),
         ));
     };
 
@@ -92,7 +94,7 @@ async fn generate_ai_commit_message(git: &GitRepository) -> Result<String> {
     let diff = git.staged_diff()?;
     if diff.is_empty() {
         return Err(GhrustError::InvalidInput(
-            "No changes to generate message from".to_string()
+            "No changes to generate message from".to_string(),
         ));
     }
 

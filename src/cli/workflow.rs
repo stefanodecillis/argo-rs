@@ -31,10 +31,7 @@ async fn handle_list(branch: Option<String>, status: Option<String>, limit: u8) 
         return Ok(());
     }
 
-    println!(
-        "Workflow runs for {}/{}:\n",
-        repo_ctx.owner, repo_ctx.name
-    );
+    println!("Workflow runs for {}/{}:\n", repo_ctx.owner, repo_ctx.name);
 
     // Print header
     println!(
@@ -85,8 +82,14 @@ async fn handle_view(run_id: u64) -> Result<()> {
     println!("  Event:      {}", run.event);
     println!("  Actor:      {}", run.actor);
     println!("  Duration:   {}", run.duration_string());
-    println!("  Created:    {}", run.created_at.format("%Y-%m-%d %H:%M:%S UTC"));
-    println!("  Updated:    {}", run.updated_at.format("%Y-%m-%d %H:%M:%S UTC"));
+    println!(
+        "  Created:    {}",
+        run.created_at.format("%Y-%m-%d %H:%M:%S UTC")
+    );
+    println!(
+        "  Updated:    {}",
+        run.updated_at.format("%Y-%m-%d %H:%M:%S UTC")
+    );
     println!();
     println!(
         "  URL: https://github.com/{}/{}/actions/runs/{}",

@@ -30,7 +30,7 @@ error() {
 
 # Detect OS and architecture
 detect_platform() {
-    local os arch
+    local os arch platform
 
     os=$(uname -s | tr '[:upper:]' '[:lower:]')
     arch=$(uname -m)
@@ -59,7 +59,25 @@ detect_platform() {
             ;;
     esac
 
-    echo "${os}-${arch}"
+    platform="${os}-${arch}"
+
+    # Check for supported platform combinations
+    # Pre-built binaries are only available for: macOS ARM64, Linux x86_64
+    case "$platform" in
+        macos-aarch64|linux-x86_64)
+            ;;
+        macos-x86_64)
+            error "macOS Intel (x86_64) is not supported. Please build from source: https://github.com/${REPO}#build-from-source"
+            ;;
+        linux-aarch64)
+            error "Linux ARM64 is not supported. Please build from source: https://github.com/${REPO}#build-from-source"
+            ;;
+        *)
+            error "Unsupported platform: $platform. Please build from source: https://github.com/${REPO}#build-from-source"
+            ;;
+    esac
+
+    echo "$platform"
 }
 
 # Get latest release version

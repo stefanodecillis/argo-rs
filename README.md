@@ -199,6 +199,17 @@ gr
 - macOS or Linux
 - For AI features: Gemini API key
 
+## Supported Platforms
+
+Pre-built binaries are available for the following platforms:
+
+| Platform | Architecture | Download |
+|----------|--------------|----------|
+| macOS | Apple Silicon (M1/M2/M3) | `gr-macos-aarch64.tar.gz` |
+| Linux | x86_64 | `gr-linux-x86_64.tar.gz` |
+
+For other platforms (macOS Intel, Linux ARM64), please build from source.
+
 ## Configuration
 
 Configuration is stored in:

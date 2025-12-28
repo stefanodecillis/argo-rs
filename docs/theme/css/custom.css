@@ -1,0 +1,162 @@
+/* argo-rs custom theme - Orange/Amber palette inspired by mascot */
+
+:root {
+  --argo-orange: #f5820d;
+  --argo-amber: #ff9500;
+  --argo-dark-orange: #d4700c;
+  --argo-light-orange: #ffb74d;
+  --argo-warm-bg: #1a1510;
+  --argo-warm-bg-light: #2a2015;
+}
+
+/* Landing page hero section */
+.hero {
+  text-align: center;
+  padding: 2rem 1rem;
+  margin-bottom: 2rem;
+  background: linear-gradient(135deg, var(--argo-warm-bg) 0%, var(--argo-warm-bg-light) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(245, 130, 13, 0.2);
+}
+
+.hero .mascot {
+  width: 120px;
+  height: auto;
+  margin-bottom: 1rem;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
+
+.hero h2 {
+  font-size: 1.8rem;
+  margin-bottom: 0.5rem;
+  color: #e8e8e8;
+}
+
+.hero .tagline {
+  font-size: 1.1rem;
+  color: #adb5bd;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Features grid */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.feature {
+  padding: 1.5rem;
+  background: var(--bg);
+  border: 1px solid rgba(245, 130, 13, 0.3);
+  border-radius: 8px;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+
+.feature:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 130, 13, 0.15);
+  border-color: var(--argo-orange);
+}
+
+.feature h3 {
+  margin-top: 0;
+  color: var(--argo-amber);
+  font-size: 1.1rem;
+}
+
+.feature p {
+  margin-bottom: 0;
+  font-size: 0.9rem;
+  color: var(--fg);
+}
+
+/* Download section */
+.download-section {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: var(--quote-bg);
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid rgba(245, 130, 13, 0.2);
+}
+
+.download-button {
+  display: inline-block;
+  padding: 0.75rem 2rem;
+  background: linear-gradient(135deg, var(--argo-orange) 0%, var(--argo-dark-orange) 100%);
+  color: white !important;
+  text-decoration: none !important;
+  border-radius: 6px;
+  font-weight: bold;
+  margin: 1rem 0;
+  transition: opacity 0.2s, transform 0.2s;
+  box-shadow: 0 2px 8px rgba(245, 130, 13, 0.3);
+}
+
+.download-button:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+}
+
+/* Screenshot placeholder */
+.screenshot-placeholder {
+  padding: 4rem 2rem;
+  background: var(--table-alternate-bg);
+  border: 2px dashed rgba(245, 130, 13, 0.4);
+  border-radius: 8px;
+  text-align: center;
+  color: var(--inline-code-color);
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .hero h2 {
+    font-size: 1.4rem;
+  }
+
+  .hero .mascot {
+    width: 80px;
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Code block enhancements */
+pre code {
+  font-size: 0.9rem;
+}
+
+/* Table improvements */
+table {
+  width: 100%;
+}
+
+table th {
+  background: var(--table-header-bg);
+}
+
+/* Keybinding table styling */
+table code {
+  background: var(--inline-code-color);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+}
+
+/* Override links to use orange theme */
+.content a {
+  color: var(--argo-amber);
+}
+
+.content a:hover {
+  color: var(--argo-light-orange);
+}
+
+/* Sidebar active link */
+.sidebar .active {
+  color: var(--argo-amber) !important;
+}

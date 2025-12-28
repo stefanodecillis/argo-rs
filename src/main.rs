@@ -11,7 +11,9 @@ use clap::Parser;
 use tracing_subscriber::EnvFilter;
 
 use argo_rs::cli::commands::{AuthCommand, Cli, Commands};
-use argo_rs::cli::{auth, branch, commit, config, pr, push, workflow};
+use argo_rs::cli::{auth, branch, commit, config, pr, push, update, workflow};
+use argo_rs::core::update::{cleanup_partial_downloads, UpdatePersistentState};
+use argo_rs::core::update_checker::apply_pending_update;
 use argo_rs::core::git::GitRepository;
 use argo_rs::core::repository::RepositoryContext;
 use argo_rs::error::{GhrustError, Result};
@@ -112,6 +114,16 @@ fn is_repo_not_found(msg: &str) -> bool {
 async fn run() -> Result<()> {
     let cli = Cli::parse();
 
+    // Try to apply any pending update before doing anything else
+    // (silent failure - don't block normal operation)
+    if let Ok(true) = apply_pending_update() {
+        eprintln!("Update applied! Please restart argo for the new version.");
+        std::process::exit(0);
+    }
+
+    // Clean up any partial downloads from interrupted sessions
+    let _ = cleanup_partial_downloads();
+
     match cli.command {
         // No subcommand - launch TUI mode
         None => run_tui().await,
@@ -122,10 +134,16 @@ async fn run() -> Result<()> {
         // Config commands don't require git repository
         Some(Commands::Config(args)) => config::handle_config(args.command),
 
+        // Update commands don't require git repository
+        Some(Commands::Update(args)) => update::handle_update(args.command).await,
+
         // All other commands require a git repository
         Some(command) => {
             // Check for git repository
             ensure_git_repository()?;
+
+            // Spawn background update check (silent, non-blocking)
+            spawn_background_update_check();
 
             match command {
                 Commands::Pr(args) => pr::handle_pr(args.command).await,
@@ -133,8 +151,18 @@ async fn run() -> Result<()> {
                 Commands::Commit(args) => commit::handle_commit(args).await,
                 Commands::Push(args) => push::handle_push(args).await,
                 Commands::Workflow(args) => workflow::handle_workflow(args.command).await,
-                Commands::Auth(_) | Commands::Config(_) => unreachable!(),
+                Commands::Auth(_) | Commands::Config(_) | Commands::Update(_) => unreachable!(),
             }
+        }
+    }
+}
+
+/// Spawn a background update check (silent, non-blocking)
+fn spawn_background_update_check() {
+    // Only spawn if we should check (throttled)
+    if let Ok(state) = UpdatePersistentState::load() {
+        if state.should_check() {
+            update::spawn_background_check();
         }
     }
 }

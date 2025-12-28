@@ -39,6 +39,9 @@ pub enum Commands {
 
     /// View GitHub Actions workflow runs
     Workflow(WorkflowArgs),
+
+    /// Check for and install updates
+    Update(UpdateArgs),
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -333,5 +336,29 @@ pub enum WorkflowCommand {
     View {
         /// Workflow run ID
         run_id: u64,
+    },
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Update Commands
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Update commands
+#[derive(Parser, Debug)]
+pub struct UpdateArgs {
+    #[command(subcommand)]
+    pub command: UpdateCommand,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum UpdateCommand {
+    /// Check if a new version is available
+    Check,
+
+    /// Download and install the latest version
+    Install {
+        /// Force check even if recently checked
+        #[arg(long, short)]
+        force: bool,
     },
 }

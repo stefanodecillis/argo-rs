@@ -1699,7 +1699,7 @@ fn render_workflow_runs(frame: &mut Frame, area: Rect, app: &App) {
         .constraints([Constraint::Min(0), Constraint::Length(1)])
         .split(area);
 
-    let items: Vec<ListItem> = if app.workflow_runs_loading {
+    let items: Vec<ListItem> = if app.workflow_runs_loading && app.workflow_runs.is_empty() {
         vec![ListItem::new("  Loading workflow runs...")]
     } else if let Some(err) = &app.workflow_runs_error {
         vec![
@@ -1782,6 +1782,9 @@ fn render_placeholder(frame: &mut Frame, area: Rect, title: &str, message: &str)
 
 /// Render the status bar
 fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
+    use crate::core::UpdateState;
+    use ratatui::layout::{Alignment, Constraint, Direction, Layout};
+
     let branch = app
         .repository
         .as_ref()
@@ -1794,11 +1797,65 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
         format!(" Branch: {} │ ? for help ", branch)
     };
 
-    let status = Paragraph::new(status_text)
-        .style(Theme::status_bar())
-        .block(Block::default().borders(Borders::TOP));
+    // Spinner for update animations
+    const SPINNER: &[&str] = &["\u{25d0}", "\u{25d3}", "\u{25d1}", "\u{25d2}"]; // ◐ ◓ ◑ ◒
 
-    frame.render_widget(status, area);
+    // Build update indicator based on state
+    let update_indicator: Option<(String, Color)> = match &app.update_state {
+        UpdateState::Idle | UpdateState::UpToDate | UpdateState::Failed => None,
+        UpdateState::Checking => {
+            let spinner = SPINNER[app.tick_counter as usize % SPINNER.len()];
+            Some((format!("{} Checking ", spinner), Color::Yellow))
+        }
+        UpdateState::Available(v) => Some((format!(" v{} available ", v), Color::Yellow)),
+        UpdateState::Downloading(progress) => {
+            let spinner = SPINNER[app.tick_counter as usize % SPINNER.len()];
+            Some((
+                format!("{} Updating {:.0}% ", spinner, progress * 100.0),
+                Color::Yellow,
+            ))
+        }
+        UpdateState::Ready(v) => Some((format!(" v{} ready ", v), Color::Green)),
+    };
+
+    // Calculate layout for status bar content
+    let update_width = update_indicator
+        .as_ref()
+        .map(|(s, _)| s.len() as u16)
+        .unwrap_or(0);
+
+    // Create inner area (inside the top border)
+    let inner_area = Rect {
+        x: area.x,
+        y: area.y + 1, // Skip the top border line
+        width: area.width,
+        height: area.height.saturating_sub(1),
+    };
+
+    // Split into left (status) and right (update indicator)
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Min(0),
+            Constraint::Length(update_width),
+        ])
+        .split(inner_area);
+
+    // Render the top border
+    let border_block = Block::default().borders(Borders::TOP);
+    frame.render_widget(border_block, area);
+
+    // Render status message (left side)
+    let status = Paragraph::new(status_text).style(Theme::status_bar());
+    frame.render_widget(status, chunks[0]);
+
+    // Render update indicator (right side) if present
+    if let Some((text, color)) = update_indicator {
+        let update_widget = Paragraph::new(text)
+            .style(Style::default().fg(color).bg(Theme::status_bar().bg.unwrap_or(Color::Reset)))
+            .alignment(Alignment::Right);
+        frame.render_widget(update_widget, chunks[1]);
+    }
 }
 
 /// Render the help overlay

@@ -9,6 +9,7 @@ pub mod commit;
 pub mod config;
 pub mod pr;
 pub mod push;
+pub mod update;
 pub mod workflow;
 
 pub use commands::{Cli, Commands};

@@ -96,6 +96,23 @@ pub enum AsyncMessage {
     ReactionRemoved { comment_id: u64, reaction_id: u64 },
     /// Reaction remove failed
     ReactionRemoveError(String),
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Update messages
+    // ─────────────────────────────────────────────────────────────────────────
+    /// Update check completed - up to date
+    UpdateUpToDate,
+    /// Update check completed - new version available
+    UpdateAvailable {
+        version: String,
+        download_url: String,
+    },
+    /// Update download progress (0.0-1.0)
+    UpdateDownloadProgress(f32),
+    /// Update download completed
+    UpdateDownloadComplete(String),
+    /// Update check or download failed (silent)
+    UpdateFailed,
 }
 
 /// Current screen in the TUI
@@ -318,6 +335,18 @@ pub struct App {
     pub workflow_runs_last_poll_tick: u64,
     /// Branch filter for workflow runs (set when viewing from PR detail)
     pub pr_workflow_branch: Option<String>,
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Update state
+    // ─────────────────────────────────────────────────────────────────────────
+    /// Current update state
+    pub update_state: crate::core::UpdateState,
+    /// Version of available update (for download)
+    pub update_available_version: Option<String>,
+    /// Download URL for available update
+    pub update_download_url: Option<String>,
+    /// Whether update check has been triggered this session
+    pub update_check_triggered: bool,
 }
 
 impl App {
@@ -419,6 +448,12 @@ impl App {
             tick_counter: 0,
             workflow_runs_last_poll_tick: 0,
             pr_workflow_branch: None,
+
+            // Update state
+            update_state: crate::core::UpdateState::Idle,
+            update_available_version: None,
+            update_download_url: None,
+            update_check_triggered: false,
         }
     }
 
@@ -479,6 +514,11 @@ impl App {
 
                         // Check if we should auto-poll workflow runs
                         self.maybe_poll_workflow_runs();
+
+                        // Check for updates on first tick (only once per session)
+                        if !self.update_check_triggered {
+                            self.spawn_update_check();
+                        }
                     }
                 }
             }
@@ -722,6 +762,31 @@ impl App {
             AsyncMessage::ReactionRemoveError(err) => {
                 self.reaction_submitting = false;
                 self.status_message = Some(format!("Failed to remove reaction: {}", err));
+            }
+
+            // Update messages
+            AsyncMessage::UpdateUpToDate => {
+                self.update_state = crate::core::UpdateState::UpToDate;
+            }
+            AsyncMessage::UpdateAvailable {
+                version,
+                download_url,
+            } => {
+                self.update_state = crate::core::UpdateState::Available(version.clone());
+                self.update_available_version = Some(version);
+                self.update_download_url = Some(download_url);
+                // Auto-start download
+                self.start_update_download();
+            }
+            AsyncMessage::UpdateDownloadProgress(progress) => {
+                self.update_state = crate::core::UpdateState::Downloading(progress);
+            }
+            AsyncMessage::UpdateDownloadComplete(version) => {
+                self.update_state = crate::core::UpdateState::Ready(version);
+            }
+            AsyncMessage::UpdateFailed => {
+                // Silent failure - just reset to idle
+                self.update_state = crate::core::UpdateState::Idle;
             }
         }
     }
@@ -2173,11 +2238,18 @@ impl App {
 
     /// Refresh the list of changed files
     fn refresh_changed_files(&mut self) {
+        let current_selection = self.commit_file_selection.selected;
+
         match GitRepository::open_current_dir() {
             Ok(repo) => match repo.changed_files() {
                 Ok(files) => {
                     self.changed_files = files;
                     self.commit_file_selection = ListState::new(self.changed_files.len());
+                    // Restore selection, clamped to valid range
+                    if !self.changed_files.is_empty() {
+                        self.commit_file_selection.selected =
+                            current_selection.min(self.changed_files.len() - 1);
+                    }
                     if self.changed_files.is_empty() {
                         self.status_message = Some("No changes to commit".to_string());
                     }
@@ -2379,7 +2451,126 @@ impl App {
 
     /// Quit the application
     pub fn quit(&mut self) {
+        // If update is downloading, mark it as partial for cleanup on next launch
+        if matches!(self.update_state, crate::core::UpdateState::Downloading(_)) {
+            if let Ok(mut state) = crate::core::update::UpdatePersistentState::load() {
+                state.partial_download = true;
+                state.clear_pending();
+                let _ = state.save();
+            }
+        }
         self.running = false;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Update methods
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// Spawn a background update check (called on first tick)
+    pub fn spawn_update_check(&mut self) {
+        if self.update_check_triggered {
+            return; // Already triggered this session
+        }
+
+        // Check if we should check (throttled)
+        let state = crate::core::update::UpdatePersistentState::load().unwrap_or_default();
+        if !state.should_check() {
+            // Check if there's already a pending update
+            if state.has_pending_update() {
+                if let Some(version) = state.pending_version {
+                    self.update_state = crate::core::UpdateState::Ready(version);
+                }
+            }
+            return;
+        }
+
+        self.update_check_triggered = true;
+        self.update_state = crate::core::UpdateState::Checking;
+
+        let tx = self.async_tx.clone();
+
+        tokio::spawn(async move {
+            use crate::core::update_checker::{check_for_update, UpdateCheckResult};
+
+            match check_for_update().await {
+                Ok(UpdateCheckResult::UpToDate) => {
+                    // Update last check time
+                    if let Ok(mut state) =
+                        crate::core::update::UpdatePersistentState::load()
+                    {
+                        state.mark_checked();
+                        let _ = state.save();
+                    }
+                    let _ = tx.send(AsyncMessage::UpdateUpToDate).await;
+                }
+                Ok(UpdateCheckResult::Available {
+                    version,
+                    download_url,
+                    ..
+                }) => {
+                    // Update last check time
+                    if let Ok(mut state) =
+                        crate::core::update::UpdatePersistentState::load()
+                    {
+                        state.mark_checked();
+                        let _ = state.save();
+                    }
+                    let _ = tx
+                        .send(AsyncMessage::UpdateAvailable {
+                            version: version.to_string(),
+                            download_url,
+                        })
+                        .await;
+                }
+                Err(_) => {
+                    let _ = tx.send(AsyncMessage::UpdateFailed).await;
+                }
+            }
+        });
+    }
+
+    /// Start downloading the available update
+    fn start_update_download(&mut self) {
+        let (version_str, download_url) = match (&self.update_available_version, &self.update_download_url) {
+            (Some(v), Some(u)) => (v.clone(), u.clone()),
+            _ => return,
+        };
+
+        self.update_state = crate::core::UpdateState::Downloading(0.0);
+
+        let tx = self.async_tx.clone();
+
+        tokio::spawn(async move {
+            use crate::core::update_checker::download_update;
+            use semver::Version;
+
+            let version = match Version::parse(&version_str) {
+                Ok(v) => v,
+                Err(_) => {
+                    let _ = tx.send(AsyncMessage::UpdateFailed).await;
+                    return;
+                }
+            };
+
+            // Create a progress sender
+            let progress_tx = tx.clone();
+            let progress_cb = Some(Box::new(move |progress: f32| {
+                let tx = progress_tx.clone();
+                // Use try_send to avoid blocking - drop progress updates if channel is full
+                let _ = tx.try_send(AsyncMessage::UpdateDownloadProgress(progress));
+            }) as Box<dyn Fn(f32) + Send + Sync>);
+
+            match download_update(&download_url, &version, progress_cb).await {
+                Ok(_) => {
+                    let _ = tx
+                        .send(AsyncMessage::UpdateDownloadComplete(version_str))
+                        .await;
+                }
+                Err(_) => {
+                    let _ = tx.send(AsyncMessage::UpdateFailed).await;
+                }
+            }
+        });
     }
 }
 

@@ -34,7 +34,7 @@ secrecy = "0.10"
 keyring = { version = "3", features = ["apple-native", "sync-secret-service"] }
 
 # HTTP client (for OAuth device flow and Gemini API)
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -61,13 +61,17 @@ chrono = { version = "0.4", features = ["serde"] }
 # URL parsing
 url = "2.5"
 
+# Auto-update functionality
+semver = "1.0"
+sha2 = "0.10"
+tempfile = "3.14"
+
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
 mockall = "0.13"
-tempfile = "3.14"
 assert_cmd = "2.0"
 predicates = "3.1"
 

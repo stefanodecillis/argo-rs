@@ -1,0 +1,28 @@
+[book]
+title = "argo-rs Documentation"
+authors = ["Stefano De Cillis"]
+description = "A TUI/CLI application for managing GitHub repositories"
+language = "en"
+src = "src"
+
+[build]
+build-dir = "book"
+create-missing = false
+
+[output.html]
+default-theme = "navy"
+preferred-dark-theme = "navy"
+smart-punctuation = true
+git-repository-url = "https://github.com/stefanodecillis/argo-rs"
+edit-url-template = "https://github.com/stefanodecillis/argo-rs/edit/main/docs/documentation/{path}"
+site-url = "/argo-rs/documentation/"
+additional-css = ["theme/css/custom.css"]
+no-section-label = false
+
+[output.html.fold]
+enable = true
+level = 1
+
+[output.html.search]
+enable = true
+limit-results = 30

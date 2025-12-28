@@ -2495,9 +2495,7 @@ impl App {
             match check_for_update().await {
                 Ok(UpdateCheckResult::UpToDate) => {
                     // Update last check time
-                    if let Ok(mut state) =
-                        crate::core::update::UpdatePersistentState::load()
-                    {
+                    if let Ok(mut state) = crate::core::update::UpdatePersistentState::load() {
                         state.mark_checked();
                         let _ = state.save();
                     }
@@ -2509,9 +2507,7 @@ impl App {
                     ..
                 }) => {
                     // Update last check time
-                    if let Ok(mut state) =
-                        crate::core::update::UpdatePersistentState::load()
-                    {
+                    if let Ok(mut state) = crate::core::update::UpdatePersistentState::load() {
                         state.mark_checked();
                         let _ = state.save();
                     }
@@ -2531,10 +2527,11 @@ impl App {
 
     /// Start downloading the available update
     fn start_update_download(&mut self) {
-        let (version_str, download_url) = match (&self.update_available_version, &self.update_download_url) {
-            (Some(v), Some(u)) => (v.clone(), u.clone()),
-            _ => return,
-        };
+        let (version_str, download_url) =
+            match (&self.update_available_version, &self.update_download_url) {
+                (Some(v), Some(u)) => (v.clone(), u.clone()),
+                _ => return,
+            };
 
         self.update_state = crate::core::UpdateState::Downloading(0.0);
 

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>argo-rs - A terminal app for managing GitHub repositories</title>
+  <meta name="description" content="Interactive TUI and CLI for GitHub - pull requests, branches, commits, and AI-powered workflows">
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="icon" href="assets/argo.png" type="image/png">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="#install">Install</a>
+    <a href="documentation/">Documentation</a>
+    <a href="https://github.com/stefanodecillis/argo-rs">GitHub</a>
+  </nav>
+
+  <main class="hero">
+    <img src="assets/argo.png" alt="argo mascot" class="mascot">
+    <h1>argo-rs</h1>
+    <p class="tagline">A terminal app for managing GitHub repositories</p>
+
+    <div class="buttons">
+      <a href="#install" class="btn btn-primary">Get Started</a>
+      <a href="documentation/" class="btn btn-secondary">Documentation</a>
+    </div>
+  </main>
+
+  <section id="install" class="install-section">
+    <h2>Quick Install</h2>
+    <div class="code-block">
+      <code>curl -sSL https://raw.githubusercontent.com/stefanodecillis/argo-rs/main/install.sh | bash</code>
+      <button class="copy-btn" onclick="copyCode()">Copy</button>
+    </div>
+    <p class="install-note">Then authenticate: <code>argo auth login</code></p>
+  </section>
+
+  <section class="features">
+    <div class="feature">
+      <h3>GitHub Authentication</h3>
+      <p>Secure OAuth Device Flow</p>
+    </div>
+    <div class="feature">
+      <h3>Pull Requests</h3>
+      <p>List, create, view, merge</p>
+    </div>
+    <div class="feature">
+      <h3>AI Integration</h3>
+      <p>Gemini-powered commits</p>
+    </div>
+    <div class="feature">
+      <h3>Interactive TUI</h3>
+      <p>Vim-style navigation</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>MIT License &middot; <a href="https://github.com/stefanodecillis/argo-rs">GitHub</a></p>
+  </footer>
+
+  <script>
+    function copyCode() {
+      const code = document.querySelector('.code-block code').textContent;
+      navigator.clipboard.writeText(code);
+      const btn = document.querySelector('.copy-btn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 2000);
+    }
+  </script>
+</body>
+</html>

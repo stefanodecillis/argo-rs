@@ -12,10 +12,10 @@ use tracing_subscriber::EnvFilter;
 
 use argo_rs::cli::commands::{AuthCommand, Cli, Commands};
 use argo_rs::cli::{auth, branch, commit, config, pr, push, update, workflow};
-use argo_rs::core::update::{cleanup_partial_downloads, UpdatePersistentState};
-use argo_rs::core::update_checker::apply_pending_update;
 use argo_rs::core::git::GitRepository;
 use argo_rs::core::repository::RepositoryContext;
+use argo_rs::core::update::{cleanup_partial_downloads, UpdatePersistentState};
+use argo_rs::core::update_checker::apply_pending_update;
 use argo_rs::error::{GhrustError, Result};
 use argo_rs::tui::App;
 

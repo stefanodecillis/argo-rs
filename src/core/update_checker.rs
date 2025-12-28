@@ -216,7 +216,8 @@ pub fn apply_pending_update() -> Result<bool> {
     let state = UpdatePersistentState::load().unwrap_or_default();
 
     // Check for pending update
-    let (pending_path, expected_sha256) = match (&state.pending_update_path, &state.pending_sha256) {
+    let (pending_path, expected_sha256) = match (&state.pending_update_path, &state.pending_sha256)
+    {
         (Some(path), Some(sha)) => (PathBuf::from(path), sha.clone()),
         _ => return Ok(false),
     };

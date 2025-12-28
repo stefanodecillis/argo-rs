@@ -1835,10 +1835,7 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
     // Split into left (status) and right (update indicator)
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Min(0),
-            Constraint::Length(update_width),
-        ])
+        .constraints([Constraint::Min(0), Constraint::Length(update_width)])
         .split(inner_area);
 
     // Render the top border
@@ -1852,7 +1849,11 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
     // Render update indicator (right side) if present
     if let Some((text, color)) = update_indicator {
         let update_widget = Paragraph::new(text)
-            .style(Style::default().fg(color).bg(Theme::status_bar().bg.unwrap_or(Color::Reset)))
+            .style(
+                Style::default()
+                    .fg(color)
+                    .bg(Theme::status_bar().bg.unwrap_or(Color::Reset)),
+            )
             .alignment(Alignment::Right);
         frame.render_widget(update_widget, chunks[1]);
     }

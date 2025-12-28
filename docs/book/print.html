@@ -1,0 +1,1065 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>argo-rs</title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="A TUI/CLI application for managing GitHub repositories">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-2459343d.css">
+        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-91a3ed0e.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-84095426.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">argo-rs</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="argo-rs"><a class="header" href="#argo-rs">argo-rs</a></h1>
+<div class="hero">
+  <img src="assets/argo.png" alt="argo mascot" class="mascot">
+  
+<p class="tagline">A terminal app for managing GitHub repositories</p>
+
+  
+<div class="hero-buttons">
+    <a href="#quick-install" class="btn btn-primary">Install</a>
+    <a href="installation/README.html" class="btn btn-secondary">Documentation</a>
+    <a href="https://github.com/stefanodecillis/argo-rs" class="btn btn-outline">GitHub</a>
+  </div>
+
+</div>
+
+<div class="features-compact">
+  <span>OAuth Authentication</span>
+  <span>PR Management</span>
+  <span>AI-Powered Commits</span>
+  <span>Interactive TUI</span>
+</div>
+
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
+<p>argo-rs is available for macOS and Linux. Choose the installation method that works best for you.</p>
+<h2 id="requirements"><a class="header" href="#requirements">Requirements</a></h2>
+<ul>
+<li>Git repository with GitHub remote</li>
+<li>macOS or Linux</li>
+<li>For AI features: <a href="#ai-setup-gemini">Gemini API key</a></li>
+</ul>
+<h2 id="supported-platforms"><a class="header" href="#supported-platforms">Supported Platforms</a></h2>
+<p>Pre-built binaries are available for:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Platform</th><th>Architecture</th><th>Binary</th></tr>
+</thead>
+<tbody>
+<tr><td>macOS</td><td>Apple Silicon (M1/M2/M3)</td><td><code>argo-macos-aarch64.tar.gz</code></td></tr>
+<tr><td>Linux</td><td>x86_64</td><td><code>argo-linux-x86_64.tar.gz</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>For other platforms (macOS Intel, Linux ARM64), please <a href="#build-from-source">build from source</a>.</p>
+<h2 id="installation-methods"><a class="header" href="#installation-methods">Installation Methods</a></h2>
+<ul>
+<li><strong><a href="#quick-install">Quick Install</a></strong> - Recommended for most users</li>
+<li><strong><a href="#build-from-source">Build from Source</a></strong> - For contributors or unsupported platforms</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="quick-install"><a class="header" href="#quick-install">Quick Install</a></h1>
+<p>The easiest way to install argo-rs on macOS or Linux.</p>
+<h2 id="one-line-install"><a class="header" href="#one-line-install">One-Line Install</a></h2>
+<pre><code class="language-bash">curl -sSL https://raw.githubusercontent.com/stefanodecillis/argo-rs/main/install.sh | bash
+</code></pre>
+<p>This will:</p>
+<ol>
+<li>Detect your platform (macOS/Linux, x86_64/aarch64)</li>
+<li>Download the latest release from GitHub</li>
+<li>Install <code>argo</code> to <code>~/.local/bin/</code></li>
+<li>Sign the binary on macOS for Keychain compatibility</li>
+</ol>
+<h2 id="verify-installation"><a class="header" href="#verify-installation">Verify Installation</a></h2>
+<p>After installation, verify it works:</p>
+<pre><code class="language-bash">argo --version
+</code></pre>
+<p>If the command is not found, ensure <code>~/.local/bin</code> is in your PATH:</p>
+<pre><code class="language-bash"># Add to ~/.bashrc or ~/.zshrc
+export PATH="$HOME/.local/bin:$PATH"
+</code></pre>
+<p>Then reload your shell:</p>
+<pre><code class="language-bash">source ~/.bashrc  # or source ~/.zshrc
+</code></pre>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next Steps</a></h2>
+<ol>
+<li><a href="#authentication">Authenticate with GitHub</a></li>
+<li>Navigate to a git repository and run <code>argo</code> to launch the TUI</li>
+</ol>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="build-from-source"><a class="header" href="#build-from-source">Build from Source</a></h1>
+<p>Build argo-rs from source for contributors or unsupported platforms.</p>
+<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
+<ul>
+<li><a href="https://rustup.rs/">Rust</a> 1.70 or later</li>
+<li>Git</li>
+</ul>
+<h2 id="build-steps"><a class="header" href="#build-steps">Build Steps</a></h2>
+<pre><code class="language-bash"># Clone the repository
+git clone https://github.com/stefanodecillis/argo-rs.git
+cd argo-rs
+
+# Build release binary (optimized)
+cargo build --release
+
+# The binary is at target/release/argo
+</code></pre>
+<h2 id="install-to-path"><a class="header" href="#install-to-path">Install to PATH</a></h2>
+<p>Copy the binary to a location in your PATH:</p>
+<pre><code class="language-bash"># Create ~/.local/bin if it doesn't exist
+mkdir -p ~/.local/bin
+
+# Copy the binary
+cp target/release/argo ~/.local/bin/
+</code></pre>
+<p>Ensure <code>~/.local/bin</code> is in your PATH:</p>
+<pre><code class="language-bash"># Add to ~/.bashrc or ~/.zshrc
+export PATH="$HOME/.local/bin:$PATH"
+</code></pre>
+<h2 id="development-build"><a class="header" href="#development-build">Development Build</a></h2>
+<p>For development with faster compile times (but slower runtime):</p>
+<pre><code class="language-bash">cargo build
+cargo run -- --help
+</code></pre>
+<h2 id="running-tests"><a class="header" href="#running-tests">Running Tests</a></h2>
+<pre><code class="language-bash">cargo test
+</code></pre>
+<h2 id="code-quality"><a class="header" href="#code-quality">Code Quality</a></h2>
+<pre><code class="language-bash"># Format code
+cargo fmt
+
+# Lint
+cargo clippy
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="updating"><a class="header" href="#updating">Updating</a></h1>
+<p>Keep argo-rs up to date with the latest features and fixes.</p>
+<h2 id="quick-update"><a class="header" href="#quick-update">Quick Update</a></h2>
+<p>Run the install script again to update to the latest version:</p>
+<pre><code class="language-bash">curl -sSL https://raw.githubusercontent.com/stefanodecillis/argo-rs/main/install.sh | bash
+</code></pre>
+<p>The script will:</p>
+<ol>
+<li>Download the latest release</li>
+<li>Replace the existing binary</li>
+<li>Preserve your configuration and credentials</li>
+</ol>
+<h2 id="check-current-version"><a class="header" href="#check-current-version">Check Current Version</a></h2>
+<pre><code class="language-bash">argo --version
+</code></pre>
+<h2 id="update-from-source"><a class="header" href="#update-from-source">Update from Source</a></h2>
+<p>If you built from source:</p>
+<pre><code class="language-bash">cd argo-rs
+git pull origin main
+cargo build --release
+cp target/release/argo ~/.local/bin/
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="uninstalling"><a class="header" href="#uninstalling">Uninstalling</a></h1>
+<p>Remove argo-rs from your system.</p>
+<h2 id="quick-uninstall"><a class="header" href="#quick-uninstall">Quick Uninstall</a></h2>
+<pre><code class="language-bash">curl -sSL https://raw.githubusercontent.com/stefanodecillis/argo-rs/main/uninstall.sh | bash
+</code></pre>
+<p>This will:</p>
+<ul>
+<li>Remove the <code>argo</code> binary</li>
+<li>Optionally remove configuration files</li>
+<li>Provide instructions for removing stored credentials</li>
+</ul>
+<h2 id="manual-uninstall"><a class="header" href="#manual-uninstall">Manual Uninstall</a></h2>
+<h3 id="remove-binary"><a class="header" href="#remove-binary">Remove Binary</a></h3>
+<pre><code class="language-bash">rm -f ~/.local/bin/argo
+</code></pre>
+<h3 id="remove-configuration"><a class="header" href="#remove-configuration">Remove Configuration</a></h3>
+<p><strong>macOS:</strong></p>
+<pre><code class="language-bash">rm -rf ~/Library/Application\ Support/com.argo-rs.argo-rs
+</code></pre>
+<p><strong>Linux:</strong></p>
+<pre><code class="language-bash">rm -rf ~/.config/argo-rs
+</code></pre>
+<h3 id="remove-credentials"><a class="header" href="#remove-credentials">Remove Credentials</a></h3>
+<p>Credentials are stored securely in your system keychain:</p>
+<ul>
+<li><strong>macOS</strong>: Open Keychain Access and search for “argo-rs”</li>
+<li><strong>Linux</strong>: Use your Secret Service manager (GNOME Keyring, KWallet, etc.) to find and remove “argo-rs” entries</li>
+</ul>
+<p>The uninstall script cannot automatically remove keychain entries for security reasons.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="cli-reference"><a class="header" href="#cli-reference">CLI Reference</a></h1>
+<p>argo-rs provides a comprehensive command-line interface for GitHub repository management.</p>
+<h2 id="command-structure"><a class="header" href="#command-structure">Command Structure</a></h2>
+<pre><code>argo [COMMAND] [OPTIONS]
+</code></pre>
+<p>Running <code>argo</code> without arguments launches the <a href="tui/README.html">TUI mode</a>.</p>
+<h2 id="available-commands"><a class="header" href="#available-commands">Available Commands</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Command</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>auth</code></td><td><a href="#authentication">Authentication</a> with GitHub</td></tr>
+<tr><td><code>pr</code></td><td><a href="#pull-requests">Pull request</a> operations</td></tr>
+<tr><td><code>branch</code></td><td><a href="#branches">Branch</a> management</td></tr>
+<tr><td><code>commit</code></td><td><a href="#commits">Create commits</a> with optional AI</td></tr>
+<tr><td><code>config</code></td><td><a href="#configuration-commands">Configuration</a> management</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="global-options"><a class="header" href="#global-options">Global Options</a></h2>
+<pre><code class="language-bash">argo --help     # Show help
+argo --version  # Show version
+</code></pre>
+<h2 id="quick-examples"><a class="header" href="#quick-examples">Quick Examples</a></h2>
+<pre><code class="language-bash"># Authenticate
+argo auth login
+
+# List PRs
+argo pr list
+
+# Create commit with AI-generated message
+argo commit -a --ai
+
+# Launch TUI
+argo
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="authentication"><a class="header" href="#authentication">Authentication</a></h1>
+<p>argo-rs uses GitHub’s OAuth Device Flow for secure browser-based authentication.</p>
+<h2 id="commands"><a class="header" href="#commands">Commands</a></h2>
+<h3 id="login"><a class="header" href="#login">Login</a></h3>
+<pre><code class="language-bash">argo auth login
+</code></pre>
+<p>This will:</p>
+<ol>
+<li>Display a device code</li>
+<li>Open your browser to GitHub’s authorization page</li>
+<li>Wait for you to enter the code and authorize</li>
+<li>Securely store the token in your system keychain</li>
+</ol>
+<h3 id="logout"><a class="header" href="#logout">Logout</a></h3>
+<pre><code class="language-bash">argo auth logout
+</code></pre>
+<p>Removes stored GitHub credentials from the keychain.</p>
+<h3 id="check-status"><a class="header" href="#check-status">Check Status</a></h3>
+<pre><code class="language-bash">argo auth status
+</code></pre>
+<p>Shows whether you’re currently authenticated and displays your GitHub username.</p>
+<h2 id="how-oauth-device-flow-works"><a class="header" href="#how-oauth-device-flow-works">How OAuth Device Flow Works</a></h2>
+<ol>
+<li>argo-rs requests a device code from GitHub</li>
+<li>You visit <code>https://github.com/login/device</code> and enter the code</li>
+<li>GitHub authenticates you and grants access to argo-rs</li>
+<li>The token is stored securely in your system keychain</li>
+</ol>
+<p>This flow is more secure than storing personal access tokens because:</p>
+<ul>
+<li>No token is ever displayed or copied</li>
+<li>Tokens have limited, well-defined scopes</li>
+<li>Authorization can be revoked from GitHub settings</li>
+</ul>
+<h2 id="token-storage"><a class="header" href="#token-storage">Token Storage</a></h2>
+<p>Tokens are stored securely using your system’s native credential storage:</p>
+<ul>
+<li><strong>macOS</strong>: Keychain</li>
+<li><strong>Linux</strong>: Secret Service (GNOME Keyring, KWallet, etc.)</li>
+</ul>
+<p>See <a href="#credential-storage">Credential Storage</a> for details.</p>
+<h2 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h2>
+<h3 id="not-authenticated-error"><a class="header" href="#not-authenticated-error">“Not authenticated” Error</a></h3>
+<p>Run <code>argo auth login</code> to authenticate.</p>
+<h3 id="token-expired"><a class="header" href="#token-expired">Token Expired</a></h3>
+<p>Re-run <code>argo auth login</code>. The old token will be replaced.</p>
+<h3 id="browser-doesnt-open"><a class="header" href="#browser-doesnt-open">Browser Doesn’t Open</a></h3>
+<p>Manually visit <code>https://github.com/login/device</code> and enter the displayed code.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="pull-requests"><a class="header" href="#pull-requests">Pull Requests</a></h1>
+<p>Manage GitHub pull requests from the command line.</p>
+<h2 id="list-pull-requests"><a class="header" href="#list-pull-requests">List Pull Requests</a></h2>
+<pre><code class="language-bash"># List open PRs (default)
+argo pr list
+
+# List all PRs (open, closed, merged)
+argo pr list --state=all
+
+# List closed PRs only
+argo pr list --state=closed
+
+# Filter by author
+argo pr list --author=username
+</code></pre>
+<h2 id="create-pull-request"><a class="header" href="#create-pull-request">Create Pull Request</a></h2>
+<pre><code class="language-bash"># Create with title only
+argo pr create --title "Add new feature"
+
+# Create with title and body
+argo pr create --title "Add new feature" --body "Description of changes"
+
+# Create as draft
+argo pr create --title "WIP: Feature" --draft
+
+# Create with AI-generated title and body
+argo pr create --ai
+</code></pre>
+<p>The <code>--ai</code> flag uses Gemini AI to analyze your commits and generate an appropriate title and description. Requires a <a href="#ai-setup-gemini">Gemini API key</a>.</p>
+<h2 id="view-pull-request"><a class="header" href="#view-pull-request">View Pull Request</a></h2>
+<pre><code class="language-bash"># View PR details and comments
+argo pr view 123
+</code></pre>
+<p>Displays:</p>
+<ul>
+<li>PR title and description</li>
+<li>Status (open, merged, closed)</li>
+<li>Author and reviewers</li>
+<li>Comments and review comments</li>
+</ul>
+<h2 id="comment-on-pull-request"><a class="header" href="#comment-on-pull-request">Comment on Pull Request</a></h2>
+<pre><code class="language-bash">argo pr comment 123 "Looks good! Just one suggestion..."
+</code></pre>
+<h2 id="merge-pull-request"><a class="header" href="#merge-pull-request">Merge Pull Request</a></h2>
+<pre><code class="language-bash"># Merge commit (default)
+argo pr merge 123
+
+# Squash and merge
+argo pr merge 123 --squash
+
+# Rebase and merge
+argo pr merge 123 --rebase
+
+# Delete branch after merge
+argo pr merge 123 --delete
+</code></pre>
+<h3 id="merge-strategies"><a class="header" href="#merge-strategies">Merge Strategies</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Strategy</th><th>Command</th><th>Result</th></tr>
+</thead>
+<tbody>
+<tr><td>Merge commit</td><td><code>--merge</code> (default)</td><td>Creates a merge commit</td></tr>
+<tr><td>Squash</td><td><code>--squash</code></td><td>Combines all commits into one</td></tr>
+<tr><td>Rebase</td><td><code>--rebase</code></td><td>Rebases commits onto base branch</td></tr>
+</tbody>
+</table>
+</div>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="branches"><a class="header" href="#branches">Branches</a></h1>
+<p>Manage remote branches on GitHub.</p>
+<h2 id="list-branches"><a class="header" href="#list-branches">List Branches</a></h2>
+<pre><code class="language-bash">argo branch list
+</code></pre>
+<p>Lists all remote branches in the repository.</p>
+<h2 id="delete-branch"><a class="header" href="#delete-branch">Delete Branch</a></h2>
+<pre><code class="language-bash"># Delete with confirmation prompt
+argo branch delete feature-branch
+
+# Delete without confirmation
+argo branch delete old-branch --force
+</code></pre>
+<p><strong>Note:</strong> This deletes the remote branch on GitHub. Local branches are not affected.</p>
+<h2 id="common-workflows"><a class="header" href="#common-workflows">Common Workflows</a></h2>
+<h3 id="clean-up-merged-branches"><a class="header" href="#clean-up-merged-branches">Clean Up Merged Branches</a></h3>
+<p>After merging a PR, delete the feature branch:</p>
+<pre><code class="language-bash"># Merge the PR with branch deletion
+argo pr merge 123 --delete
+
+# Or delete separately
+argo branch delete feature-branch
+</code></pre>
+<h3 id="remove-stale-branches"><a class="header" href="#remove-stale-branches">Remove Stale Branches</a></h3>
+<p>List branches to identify old ones, then delete:</p>
+<pre><code class="language-bash">argo branch list
+argo branch delete stale-feature --force
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="commits"><a class="header" href="#commits">Commits</a></h1>
+<p>Create commits with optional AI-generated messages.</p>
+<h2 id="basic-usage"><a class="header" href="#basic-usage">Basic Usage</a></h2>
+<pre><code class="language-bash"># Commit staged changes
+argo commit -m "feat: add user authentication"
+
+# Stage all changes and commit
+argo commit -a -m "fix: resolve login bug"
+</code></pre>
+<h2 id="ai-generated-messages"><a class="header" href="#ai-generated-messages">AI-Generated Messages</a></h2>
+<p>Let Gemini AI analyze your changes and generate a commit message:</p>
+<pre><code class="language-bash"># Generate message for staged changes
+argo commit --ai
+
+# Stage all and generate message
+argo commit -a --ai
+</code></pre>
+<p>The AI will:</p>
+<ol>
+<li>Analyze your staged changes (diff)</li>
+<li>Generate a conventional commit message</li>
+<li>Show you the message for confirmation</li>
+</ol>
+<p>Requires a <a href="#ai-setup-gemini">Gemini API key</a>.</p>
+<h2 id="options"><a class="header" href="#options">Options</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Option</th><th>Short</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>--message</code></td><td><code>-m</code></td><td>Commit message</td></tr>
+<tr><td><code>--all</code></td><td><code>-a</code></td><td>Stage all modified files</td></tr>
+<tr><td><code>--ai</code></td><td></td><td>Generate message with AI</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="commit-message-format"><a class="header" href="#commit-message-format">Commit Message Format</a></h2>
+<p>argo-rs follows <a href="https://www.conventionalcommits.org/">Conventional Commits</a>:</p>
+<pre><code>type(scope): description
+
+[optional body]
+</code></pre>
+<p>Common types:</p>
+<ul>
+<li><code>feat</code>: New feature</li>
+<li><code>fix</code>: Bug fix</li>
+<li><code>docs</code>: Documentation</li>
+<li><code>refactor</code>: Code refactoring</li>
+<li><code>test</code>: Adding tests</li>
+<li><code>chore</code>: Maintenance tasks</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="configuration-commands"><a class="header" href="#configuration-commands">Configuration Commands</a></h1>
+<p>Manage argo-rs settings from the command line.</p>
+<h2 id="gemini-api-key"><a class="header" href="#gemini-api-key">Gemini API Key</a></h2>
+<p>Required for AI-powered features (commit messages, PR descriptions).</p>
+<pre><code class="language-bash"># Set your API key
+argo config set gemini-key YOUR_API_KEY
+
+# Check if key is configured
+argo config get gemini-key
+</code></pre>
+<p>Get an API key from <a href="https://aistudio.google.com/">Google AI Studio</a>.</p>
+<h2 id="gemini-model"><a class="header" href="#gemini-model">Gemini Model</a></h2>
+<p>Choose which Gemini model to use for AI features.</p>
+<pre><code class="language-bash"># Set the model
+argo config set gemini-model gemini-2.5-flash
+
+# Check current model
+argo config get gemini-model
+</code></pre>
+<h3 id="available-models"><a class="header" href="#available-models">Available Models</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Model</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>gemini-2.0-flash</code></td><td>Fast, efficient model</td></tr>
+<tr><td><code>gemini-2.5-flash</code></td><td>Default, balanced performance</td></tr>
+<tr><td><code>gemini-3-flash-preview</code></td><td>Latest preview features</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="configuration-storage"><a class="header" href="#configuration-storage">Configuration Storage</a></h2>
+<p>Settings are stored in:</p>
+<ul>
+<li><strong>macOS</strong>: <code>~/Library/Application Support/com.argo-rs.argo-rs/config.toml</code></li>
+<li><strong>Linux</strong>: <code>~/.config/argo-rs/config.toml</code></li>
+</ul>
+<p>See <a href="#file-locations">File Locations</a> for details.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="tui-guide"><a class="header" href="#tui-guide">TUI Guide</a></h1>
+<p>argo-rs includes an interactive Terminal User Interface (TUI) for managing GitHub repositories visually.</p>
+<h2 id="launching-the-tui"><a class="header" href="#launching-the-tui">Launching the TUI</a></h2>
+<p>Navigate to a git repository with a GitHub remote and run:</p>
+<pre><code class="language-bash">argo
+</code></pre>
+<p>The TUI provides:</p>
+<ul>
+<li>Visual navigation of pull requests</li>
+<li>Real-time polling for PR updates</li>
+<li>Keyboard-driven workflow with vim-style navigation</li>
+<li>Quick access to all argo-rs features</li>
+</ul>
+<h2 id="screens"><a class="header" href="#screens">Screens</a></h2>
+<p>The TUI consists of multiple screens:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Screen</th><th>Access</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>Home</td><td>Launch</td><td>Main menu</td></tr>
+<tr><td>PR List</td><td><code>p</code></td><td>View and manage pull requests</td></tr>
+<tr><td>Commit</td><td><code>c</code></td><td>Stage and commit changes</td></tr>
+<tr><td>Settings</td><td><code>s</code></td><td>Configure argo-rs</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="requirements-1"><a class="header" href="#requirements-1">Requirements</a></h2>
+<ul>
+<li>Terminal with at least 80x24 characters</li>
+<li>GitHub authentication (run <code>argo auth login</code> first)</li>
+<li>Valid git repository with GitHub remote</li>
+</ul>
+<h2 id="next-steps-1"><a class="header" href="#next-steps-1">Next Steps</a></h2>
+<ul>
+<li>Learn <a href="#navigation--keybindings">Navigation &amp; Keybindings</a></li>
+<li>Or use the <a href="cli/README.html">CLI</a> for scripting</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="navigation--keybindings"><a class="header" href="#navigation--keybindings">Navigation &amp; Keybindings</a></h1>
+<p>argo-rs uses vim-style navigation for efficient keyboard-driven workflows.</p>
+<h2 id="global-keybindings"><a class="header" href="#global-keybindings">Global Keybindings</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Key</th><th>Action</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Esc</code> / <code>q</code></td><td>Back / Quit</td></tr>
+<tr><td><code>?</code></td><td>Help</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="navigation"><a class="header" href="#navigation">Navigation</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Key</th><th>Action</th></tr>
+</thead>
+<tbody>
+<tr><td><code>j</code> / <code>Down</code></td><td>Move down</td></tr>
+<tr><td><code>k</code> / <code>Up</code></td><td>Move up</td></tr>
+<tr><td><code>Enter</code></td><td>Select / Confirm</td></tr>
+<tr><td><code>r</code></td><td>Refresh current view</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="screen-navigation"><a class="header" href="#screen-navigation">Screen Navigation</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Key</th><th>Action</th></tr>
+</thead>
+<tbody>
+<tr><td><code>p</code></td><td>Go to PR list</td></tr>
+<tr><td><code>c</code></td><td>Go to commit screen</td></tr>
+<tr><td><code>s</code></td><td>Go to settings</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="pr-list-actions"><a class="header" href="#pr-list-actions">PR List Actions</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Key</th><th>Action</th></tr>
+</thead>
+<tbody>
+<tr><td><code>n</code></td><td>Create new PR</td></tr>
+<tr><td><code>Enter</code></td><td>View selected PR</td></tr>
+<tr><td><code>r</code></td><td>Refresh PR list</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="tips"><a class="header" href="#tips">Tips</a></h2>
+<ul>
+<li><strong>Circular Navigation</strong>: Lists wrap around - pressing <code>j</code> at the bottom goes to the top</li>
+<li><strong>Escape Anywhere</strong>: Press <code>Esc</code> or <code>q</code> to go back or quit from any screen</li>
+<li><strong>Quick Refresh</strong>: Press <code>r</code> to refresh data without leaving the current view</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="configuration"><a class="header" href="#configuration">Configuration</a></h1>
+<p>argo-rs stores configuration and credentials securely on your system.</p>
+<h2 id="configuration-files"><a class="header" href="#configuration-files">Configuration Files</a></h2>
+<p>Settings are stored in TOML format:</p>
+<ul>
+<li><strong>macOS</strong>: <code>~/Library/Application Support/com.argo-rs.argo-rs/config.toml</code></li>
+<li><strong>Linux</strong>: <code>~/.config/argo-rs/config.toml</code></li>
+</ul>
+<h2 id="credentials"><a class="header" href="#credentials">Credentials</a></h2>
+<p>Sensitive data (tokens, API keys) are stored in your system keychain:</p>
+<ul>
+<li><strong>macOS</strong>: Keychain</li>
+<li><strong>Linux</strong>: Secret Service (GNOME Keyring, KWallet, etc.)</li>
+</ul>
+<h2 id="available-settings"><a class="header" href="#available-settings">Available Settings</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Setting</th><th>Command</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>Gemini API Key</td><td><code>argo config set gemini-key</code></td><td>Required for AI features</td></tr>
+<tr><td>Gemini Model</td><td><code>argo config set gemini-model</code></td><td>AI model selection</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="sections"><a class="header" href="#sections">Sections</a></h2>
+<ul>
+<li><a href="#file-locations">File Locations</a> - Where config files are stored</li>
+<li><a href="#credential-storage">Credential Storage</a> - How secrets are protected</li>
+<li><a href="#ai-setup-gemini">AI Setup</a> - Configure Gemini integration</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="file-locations"><a class="header" href="#file-locations">File Locations</a></h1>
+<p>argo-rs follows platform conventions for configuration storage.</p>
+<h2 id="configuration-directory"><a class="header" href="#configuration-directory">Configuration Directory</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Platform</th><th>Path</th></tr>
+</thead>
+<tbody>
+<tr><td>macOS</td><td><code>~/Library/Application Support/com.argo-rs.argo-rs/</code></td></tr>
+<tr><td>Linux</td><td><code>~/.config/argo-rs/</code></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="configuration-file"><a class="header" href="#configuration-file">Configuration File</a></h2>
+<p>The main configuration file is <code>config.toml</code> inside the configuration directory.</p>
+<p><strong>macOS:</strong></p>
+<pre><code>~/Library/Application Support/com.argo-rs.argo-rs/config.toml
+</code></pre>
+<p><strong>Linux:</strong></p>
+<pre><code>~/.config/argo-rs/config.toml
+</code></pre>
+<h2 id="config-file-format"><a class="header" href="#config-file-format">Config File Format</a></h2>
+<pre><code class="language-toml"># Example config.toml
+gemini_model = "gemini-2.5-flash"
+</code></pre>
+<h2 id="credentials-1"><a class="header" href="#credentials-1">Credentials</a></h2>
+<p>Credentials are <strong>not</strong> stored in the config file. They are stored securely in your system keychain. See <a href="#credential-storage">Credential Storage</a>.</p>
+<h2 id="resetting-configuration"><a class="header" href="#resetting-configuration">Resetting Configuration</a></h2>
+<p>To reset configuration, delete the config directory:</p>
+<p><strong>macOS:</strong></p>
+<pre><code class="language-bash">rm -rf ~/Library/Application\ Support/com.argo-rs.argo-rs
+</code></pre>
+<p><strong>Linux:</strong></p>
+<pre><code class="language-bash">rm -rf ~/.config/argo-rs
+</code></pre>
+<p>Note: This does not remove credentials from the keychain. Use <code>argo auth logout</code> to remove GitHub credentials.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="credential-storage"><a class="header" href="#credential-storage">Credential Storage</a></h1>
+<p>argo-rs stores sensitive credentials securely using your system’s native keychain.</p>
+<h2 id="storage-mechanism"><a class="header" href="#storage-mechanism">Storage Mechanism</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Platform</th><th>Backend</th></tr>
+</thead>
+<tbody>
+<tr><td>macOS</td><td>Keychain</td></tr>
+<tr><td>Linux</td><td>Secret Service (GNOME Keyring, KWallet, etc.)</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="whats-stored"><a class="header" href="#whats-stored">What’s Stored</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Credential</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td>GitHub Token</td><td>Authentication for GitHub API</td></tr>
+<tr><td>Gemini API Key</td><td>AI feature integration</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="security-features"><a class="header" href="#security-features">Security Features</a></h2>
+<h3 id="secret-handling"><a class="header" href="#secret-handling">Secret Handling</a></h3>
+<p>argo-rs uses the <code>secrecy</code> crate to prevent accidental token exposure:</p>
+<ul>
+<li>Tokens are wrapped in <code>SecretString</code></li>
+<li>Debug output redacts sensitive values</li>
+<li>Memory is zeroed when tokens are dropped</li>
+</ul>
+<h3 id="three-tier-fallback"><a class="header" href="#three-tier-fallback">Three-Tier Fallback</a></h3>
+<p>Credentials are retrieved in order:</p>
+<ol>
+<li><strong>Environment Variables</strong> - <code>GITHUB_TOKEN</code>, <code>GEMINI_API_KEY</code></li>
+<li><strong>In-Memory Cache</strong> - For performance during a session</li>
+<li><strong>System Keychain</strong> - Persistent secure storage</li>
+</ol>
+<p>This allows CI/CD environments to use environment variables while desktop users benefit from keychain storage.</p>
+<h2 id="managing-credentials"><a class="header" href="#managing-credentials">Managing Credentials</a></h2>
+<h3 id="github-token"><a class="header" href="#github-token">GitHub Token</a></h3>
+<pre><code class="language-bash"># Login (stores token in keychain)
+argo auth login
+
+# Logout (removes token from keychain)
+argo auth logout
+
+# Check status
+argo auth status
+</code></pre>
+<h3 id="gemini-api-key-1"><a class="header" href="#gemini-api-key-1">Gemini API Key</a></h3>
+<pre><code class="language-bash"># Set key (stores in keychain)
+argo config set gemini-key YOUR_KEY
+
+# Check if configured
+argo config get gemini-key
+</code></pre>
+<h2 id="environment-variables"><a class="header" href="#environment-variables">Environment Variables</a></h2>
+<p>For CI/CD or if you prefer not to use the keychain:</p>
+<pre><code class="language-bash">export GITHUB_TOKEN="ghp_xxxxx"
+export GEMINI_API_KEY="xxxxx"
+</code></pre>
+<p>These take precedence over keychain-stored credentials.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="ai-setup-gemini"><a class="header" href="#ai-setup-gemini">AI Setup (Gemini)</a></h1>
+<p>argo-rs integrates with Google’s Gemini AI for generating commit messages and PR descriptions.</p>
+<h2 id="getting-an-api-key"><a class="header" href="#getting-an-api-key">Getting an API Key</a></h2>
+<ol>
+<li>Visit <a href="https://aistudio.google.com/">Google AI Studio</a></li>
+<li>Sign in with your Google account</li>
+<li>Create a new API key</li>
+<li>Copy the key</li>
+</ol>
+<h2 id="configuring-argo-rs"><a class="header" href="#configuring-argo-rs">Configuring argo-rs</a></h2>
+<pre><code class="language-bash"># Set your API key
+argo config set gemini-key YOUR_API_KEY
+
+# Verify it's configured
+argo config get gemini-key
+</code></pre>
+<h2 id="selecting-a-model"><a class="header" href="#selecting-a-model">Selecting a Model</a></h2>
+<p>Choose which Gemini model to use:</p>
+<pre><code class="language-bash"># Set the model
+argo config set gemini-model gemini-2.5-flash
+
+# Check current model
+argo config get gemini-model
+</code></pre>
+<h3 id="available-models-1"><a class="header" href="#available-models-1">Available Models</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Model</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>gemini-2.0-flash</code></td><td>Fast, efficient responses</td></tr>
+<tr><td><code>gemini-2.5-flash</code></td><td><strong>Default</strong> - Balanced performance</td></tr>
+<tr><td><code>gemini-3-flash-preview</code></td><td>Latest features (preview)</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="using-ai-features"><a class="header" href="#using-ai-features">Using AI Features</a></h2>
+<h3 id="ai-commit-messages"><a class="header" href="#ai-commit-messages">AI Commit Messages</a></h3>
+<p>Generate a commit message from your staged changes:</p>
+<pre><code class="language-bash"># Stage files first
+git add .
+
+# Generate and commit
+argo commit --ai
+
+# Or stage all and generate
+argo commit -a --ai
+</code></pre>
+<h3 id="ai-pr-descriptions"><a class="header" href="#ai-pr-descriptions">AI PR Descriptions</a></h3>
+<p>Generate a PR title and description from your branch commits:</p>
+<pre><code class="language-bash">argo pr create --ai
+</code></pre>
+<h2 id="how-it-works"><a class="header" href="#how-it-works">How It Works</a></h2>
+<ol>
+<li>argo-rs analyzes your changes (diff for commits, commits for PRs)</li>
+<li>Sends context to Gemini API</li>
+<li>Returns a formatted message following conventional commit style</li>
+<li>Shows you the result for confirmation before applying</li>
+</ol>
+<h2 id="troubleshooting-1"><a class="header" href="#troubleshooting-1">Troubleshooting</a></h2>
+<h3 id="api-key-not-configured"><a class="header" href="#api-key-not-configured">“API key not configured”</a></h3>
+<p>Run <code>argo config set gemini-key YOUR_KEY</code> with your API key.</p>
+<h3 id="rate-limit-exceeded"><a class="header" href="#rate-limit-exceeded">“Rate limit exceeded”</a></h3>
+<p>Wait a moment and try again. Free tier has usage limits.</p>
+<h3 id="poor-quality-suggestions"><a class="header" href="#poor-quality-suggestions">Poor quality suggestions</a></h3>
+<p>Try a different model with <code>argo config set gemini-model gemini-3-flash-preview</code>.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="development"><a class="header" href="#development">Development</a></h1>
+<p>Guide for contributing to argo-rs.</p>
+<h2 id="setup"><a class="header" href="#setup">Setup</a></h2>
+<pre><code class="language-bash"># Clone the repository
+git clone https://github.com/stefanodecillis/argo-rs.git
+cd argo-rs
+
+# Build
+cargo build
+
+# Run
+cargo run -- --help
+
+# Test
+cargo test
+
+# Format
+cargo fmt
+
+# Lint
+cargo clippy
+</code></pre>
+<h2 id="architecture"><a class="header" href="#architecture">Architecture</a></h2>
+<pre><code>src/
+├── main.rs          # Entry point, CLI dispatch
+├── error.rs         # Unified error handling
+├── core/            # Business logic
+│   ├── config.rs    # TOML config management
+│   ├── credentials.rs # Credential storage
+│   ├── git.rs       # Git operations
+│   └── repository.rs # GitHub URL parsing
+├── github/          # GitHub API
+│   ├── client.rs    # Octocrab wrapper
+│   ├── auth.rs      # OAuth Device Flow
+│   ├── pull_request.rs
+│   └── branch.rs
+├── cli/             # Command handlers
+├── tui/             # Terminal UI
+│   ├── app.rs       # State machine
+│   ├── event.rs     # Input handling
+│   └── screens/     # Screen implementations
+└── ai/              # Gemini integration
+    ├── gemini.rs    # API client
+    └── prompts.rs   # Prompt templates
+</code></pre>
+<h2 id="key-patterns"><a class="header" href="#key-patterns">Key Patterns</a></h2>
+<h3 id="error-handling"><a class="header" href="#error-handling">Error Handling</a></h3>
+<p>All errors flow through <code>GhrustError</code> in <code>src/error.rs</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum GhrustError {
+    Git(String),
+    GitHub(String),
+    Config(String),
+    // ...
+}
+<span class="boring">}</span></code></pre>
+<h3 id="credential-management"><a class="header" href="#credential-management">Credential Management</a></h3>
+<p>Three-tier fallback: environment → cache → keyring. Uses <code>secrecy::SecretString</code> to prevent accidental exposure.</p>
+<h3 id="async-architecture"><a class="header" href="#async-architecture">Async Architecture</a></h3>
+<p>Tokio runtime with channel-based message passing between TUI and async operations.</p>
+<h2 id="contributing"><a class="header" href="#contributing">Contributing</a></h2>
+<ol>
+<li>Fork the repository</li>
+<li>Create a feature branch</li>
+<li>Make your changes</li>
+<li>Run <code>cargo fmt</code> and <code>cargo clippy</code></li>
+<li>Run <code>cargo test</code></li>
+<li>Submit a pull request</li>
+</ol>
+<h2 id="license"><a class="header" href="#license">License</a></h2>
+<p>MIT - see <a href="https://github.com/stefanodecillis/argo-rs/blob/main/LICENSE">LICENSE</a> for details.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-c2a407aa.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+
+    </div>
+    </body>
+</html>

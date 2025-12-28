@@ -1,0 +1,167 @@
+/* argo-rs custom theme - Orange/Amber palette inspired by mascot */
+
+:root {
+  --argo-orange: #f5820d;
+  --argo-amber: #ff9500;
+  --argo-dark-orange: #d4700c;
+  --argo-light-orange: #ffb74d;
+  --argo-warm-bg: #1a1510;
+  --argo-warm-bg-light: #2a2015;
+}
+
+/* Landing page hero section */
+.hero {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  margin-bottom: 1.5rem;
+  background: linear-gradient(135deg, var(--argo-warm-bg) 0%, var(--argo-warm-bg-light) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(245, 130, 13, 0.2);
+}
+
+.hero .mascot {
+  width: 140px;
+  height: auto;
+  margin-bottom: 1.5rem;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+}
+
+.hero .tagline {
+  font-size: 1.3rem;
+  color: #c9c9c9;
+  margin: 0 auto 2rem;
+  max-width: 500px;
+}
+
+/* Hero buttons */
+.hero-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  text-decoration: none !important;
+  transition: all 0.2s;
+  font-size: 0.95rem;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--argo-orange) 0%, var(--argo-dark-orange) 100%);
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(245, 130, 13, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 130, 13, 0.4);
+}
+
+.btn-secondary {
+  background: rgba(245, 130, 13, 0.15);
+  color: var(--argo-amber) !important;
+  border: 1px solid var(--argo-orange);
+}
+
+.btn-secondary:hover {
+  background: rgba(245, 130, 13, 0.25);
+}
+
+.btn-outline {
+  background: transparent;
+  color: #adb5bd !important;
+  border: 1px solid #555;
+}
+
+.btn-outline:hover {
+  border-color: #888;
+  color: #ddd !important;
+}
+
+/* Compact features strip */
+.features-compact {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.features-compact span {
+  background: rgba(245, 130, 13, 0.1);
+  color: var(--argo-light-orange);
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  border: 1px solid rgba(245, 130, 13, 0.2);
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .hero .mascot {
+    width: 100px;
+  }
+
+  .hero .tagline {
+    font-size: 1.1rem;
+  }
+
+  .hero-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .btn {
+    width: 100%;
+    max-width: 200px;
+    text-align: center;
+  }
+
+  .features-compact {
+    gap: 0.5rem;
+  }
+
+  .features-compact span {
+    font-size: 0.75rem;
+  }
+}
+
+/* Code block enhancements */
+pre code {
+  font-size: 0.9rem;
+}
+
+/* Table improvements */
+table {
+  width: 100%;
+}
+
+table th {
+  background: var(--table-header-bg);
+}
+
+/* Keybinding table styling */
+table code {
+  background: var(--inline-code-color);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+}
+
+/* Override links to use orange theme */
+.content a {
+  color: var(--argo-amber);
+}
+
+.content a:hover {
+  color: var(--argo-light-orange);
+}
+
+/* Sidebar active link */
+.sidebar .active {
+  color: var(--argo-amber) !important;
+}

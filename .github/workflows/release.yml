@@ -17,9 +17,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # macOS
+          # macOS - use macos-13 (Intel) for x86_64, macos-latest (Apple Silicon) for ARM
           - target: x86_64-apple-darwin
-            os: macos-latest
+            os: macos-13
             name: gr-macos-x86_64
           - target: aarch64-apple-darwin
             os: macos-latest
@@ -48,25 +48,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libdbus-1-dev libssl-dev pkg-config
 
-      - name: Install cross-compilation tools (Linux ARM64)
+      - name: Install cross (Linux ARM64)
         if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo dpkg --add-architecture arm64
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu \
-            libdbus-1-dev:arm64 \
-            libssl-dev:arm64 \
-            pkg-config
+        run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Build
         run: |
           if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
-            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
-            export PKG_CONFIG_ALLOW_CROSS=1
-            export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig
+            cross build --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
           fi
-          cargo build --release --target ${{ matrix.target }}
 
       - name: Package
         run: |

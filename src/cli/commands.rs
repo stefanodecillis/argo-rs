@@ -216,6 +216,10 @@ pub enum BranchCommand {
 /// Commit commands
 #[derive(Parser, Debug)]
 pub struct CommitArgs {
+    /// Files or directories to stage (e.g., 'src/' or 'file.rs')
+    #[arg(trailing_var_arg = true, value_hint = clap::ValueHint::AnyPath)]
+    pub paths: Vec<std::path::PathBuf>,
+
     /// Commit message
     #[arg(short, long)]
     pub message: Option<String>,

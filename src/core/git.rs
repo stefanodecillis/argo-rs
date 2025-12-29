@@ -288,6 +288,36 @@ impl GitRepository {
         Ok(())
     }
 
+    /// Stage all files under a directory
+    pub fn stage_directory(&self, dir: &Path) -> Result<()> {
+        let mut index = self.repo.index()?;
+        // Use glob pattern to match all files under the directory
+        let pattern = format!("{}/*", dir.display());
+        index.add_all([&pattern].iter(), git2::IndexAddOption::DEFAULT, None)?;
+        index.write()?;
+        Ok(())
+    }
+
+    /// Stage multiple files at once
+    pub fn stage_paths(&self, paths: &[&Path]) -> Result<()> {
+        let mut index = self.repo.index()?;
+        for path in paths {
+            index.add_path(path)?;
+        }
+        index.write()?;
+        Ok(())
+    }
+
+    /// Unstage multiple files at once
+    pub fn unstage_paths(&self, paths: &[&Path]) -> Result<()> {
+        let head = self.repo.head()?.peel_to_commit()?;
+        for path in paths {
+            self.repo
+                .reset_default(Some(&head.clone().into_object()), [*path])?;
+        }
+        Ok(())
+    }
+
     /// Create a commit with the staged changes
     pub fn commit(&self, message: &str) -> Result<String> {
         let mut index = self.repo.index()?;

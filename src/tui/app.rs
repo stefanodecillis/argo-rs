@@ -155,6 +155,38 @@ impl ListState {
     }
 }
 
+/// Error popup for displaying important errors that require user acknowledgment
+#[derive(Debug, Clone)]
+pub struct ErrorPopup {
+    /// Title of the error popup (e.g., "Push Failed", "PR Creation Failed")
+    pub title: String,
+    /// The full error message to display
+    pub message: String,
+}
+
+/// A group of files in the same directory for the commit screen
+#[derive(Debug, Clone)]
+pub struct FileGroup {
+    /// The directory path (e.g., "src/core" or "." for root)
+    pub directory: String,
+    /// Files in this directory
+    pub files: Vec<FileStatus>,
+    /// Whether this group is expanded (showing files)
+    pub expanded: bool,
+}
+
+impl FileGroup {
+    /// Get the number of staged files in this group
+    pub fn staged_count(&self) -> usize {
+        self.files.iter().filter(|f| f.is_staged).count()
+    }
+
+    /// Check if all files in this group are staged
+    pub fn all_staged(&self) -> bool {
+        !self.files.is_empty() && self.files.iter().all(|f| f.is_staged)
+    }
+}
+
 /// Main TUI application
 pub struct App {
     /// Whether the app is running
@@ -279,6 +311,12 @@ pub struct App {
     pub last_commit_hash: Option<String>,
     /// Tracking branch for push prompt display
     pub commit_tracking_branch: Option<String>,
+    /// File groups for directory-based display
+    pub file_groups: Vec<FileGroup>,
+    /// Currently selected group index
+    pub selected_group_idx: usize,
+    /// Selected file within the group (None = folder header selected, Some(i) = file i)
+    pub selected_file_in_group: Option<usize>,
 
     // ─────────────────────────────────────────────────────────────────────────
     // PR Create form data
@@ -347,6 +385,12 @@ pub struct App {
     pub update_download_url: Option<String>,
     /// Whether update check has been triggered this session
     pub update_check_triggered: bool,
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Error popup
+    // ─────────────────────────────────────────────────────────────────────────
+    /// Error popup to display (requires user dismissal)
+    pub error_popup: Option<ErrorPopup>,
 }
 
 impl App {
@@ -420,6 +464,9 @@ impl App {
             commit_push_loading: false,
             last_commit_hash: None,
             commit_tracking_branch: None,
+            file_groups: Vec::new(),
+            selected_group_idx: 0,
+            selected_file_in_group: None,
 
             // PR Create form
             pr_create_title: String::new(),
@@ -454,6 +501,9 @@ impl App {
             update_available_version: None,
             update_download_url: None,
             update_check_triggered: false,
+
+            // Error popup
+            error_popup: None,
         }
     }
 
@@ -622,7 +672,10 @@ impl App {
             AsyncMessage::PrCreateError(err) => {
                 self.pr_create_submitting = false;
                 self.pr_create_error = Some(err.clone());
-                self.status_message = Some(format!("Error creating PR: {}", err));
+                self.error_popup = Some(ErrorPopup {
+                    title: "PR Creation Failed".to_string(),
+                    message: err,
+                });
             }
             AsyncMessage::AiContentGenerated { title, body } => {
                 self.pr_create_ai_loading = false;
@@ -656,7 +709,10 @@ impl App {
             }
             AsyncMessage::PushError(err) => {
                 self.commit_push_loading = false;
-                self.status_message = Some(format!("Push failed: {}", err));
+                self.error_popup = Some(ErrorPopup {
+                    title: "Push Failed".to_string(),
+                    message: err,
+                });
             }
             AsyncMessage::WorkflowRunsLoaded {
                 runs,
@@ -1187,6 +1243,14 @@ impl App {
         if self.show_help {
             self.show_help = false;
             return;
+        }
+
+        // If error popup is shown, only allow dismissal keys
+        if self.error_popup.is_some() {
+            if matches!(key.code, KeyCode::Enter | KeyCode::Esc | KeyCode::Char('q')) {
+                self.error_popup = None;
+            }
+            return; // Block all other input while popup is shown
         }
 
         // If in settings input mode, handle it directly (bypass global handlers)
@@ -1812,23 +1876,47 @@ impl App {
             return;
         }
 
-        // File selection mode
+        // File/folder selection mode with grouped navigation
         match key.code {
-            KeyCode::Char('j') | KeyCode::Down => self.commit_file_selection.next(),
-            KeyCode::Char('k') | KeyCode::Up => self.commit_file_selection.previous(),
-            KeyCode::Char(' ') => self.toggle_file_staging(),
+            KeyCode::Char('j') | KeyCode::Down => self.commit_navigate_next(),
+            KeyCode::Char('k') | KeyCode::Up => self.commit_navigate_prev(),
+            KeyCode::Char(' ') => {
+                // Toggle staging: folder (all files) or single file
+                match self.selected_file_in_group {
+                    None => {
+                        // Toggle entire folder
+                        self.toggle_folder_staging(self.selected_group_idx);
+                    }
+                    Some(_) => {
+                        // Toggle single file
+                        self.toggle_file_staging();
+                    }
+                }
+            }
             KeyCode::Char('a') => self.stage_all_files(),
+            KeyCode::Char('u') => self.unstage_all_files(),
             KeyCode::Char('r') => self.refresh_changed_files(),
             KeyCode::Enter => {
-                let has_staged = self.changed_files.iter().any(|f| f.is_staged);
-                if has_staged {
-                    // Enter message input mode
-                    self.commit_message_mode = true;
-                    self.commit_message.clear();
-                    self.status_message = Some("Enter commit message...".to_string());
-                } else {
-                    self.status_message =
-                        Some("Stage files first (Space to toggle, 'a' to stage all)".to_string());
+                match self.selected_file_in_group {
+                    None => {
+                        // On folder header: toggle expand/collapse
+                        if let Some(group) = self.file_groups.get_mut(self.selected_group_idx) {
+                            group.expanded = !group.expanded;
+                        }
+                    }
+                    Some(_) => {
+                        // On file: enter message mode if we have staged files
+                        let has_staged = self.changed_files.iter().any(|f| f.is_staged);
+                        if has_staged {
+                            self.commit_message_mode = true;
+                            self.commit_message.clear();
+                            self.status_message = Some("Enter commit message...".to_string());
+                        } else {
+                            self.status_message = Some(
+                                "Stage files first (Space to toggle, 'a' to stage all)".to_string(),
+                            );
+                        }
+                    }
                 }
             }
             KeyCode::Char('g') => {
@@ -1841,8 +1929,125 @@ impl App {
                         Some("Stage files first before generating message".to_string());
                 }
             }
+            KeyCode::Char('c') => {
+                // 'c' as alternative to Enter for entering commit message mode
+                let has_staged = self.changed_files.iter().any(|f| f.is_staged);
+                if has_staged {
+                    self.commit_message_mode = true;
+                    self.commit_message.clear();
+                    self.status_message = Some("Enter commit message...".to_string());
+                } else {
+                    self.status_message =
+                        Some("Stage files first (Space to toggle, 'a' to stage all)".to_string());
+                }
+            }
             _ => {}
         }
+    }
+
+    /// Navigate to next item in commit screen (folder or file)
+    fn commit_navigate_next(&mut self) {
+        if self.file_groups.is_empty() {
+            return;
+        }
+
+        match self.selected_file_in_group {
+            None => {
+                // On folder header
+                if let Some(group) = self.file_groups.get(self.selected_group_idx) {
+                    if group.expanded && !group.files.is_empty() {
+                        // Move into the folder (first file)
+                        self.selected_file_in_group = Some(0);
+                    } else {
+                        // Move to next folder
+                        self.selected_group_idx =
+                            (self.selected_group_idx + 1) % self.file_groups.len();
+                    }
+                }
+            }
+            Some(file_idx) => {
+                if let Some(group) = self.file_groups.get(self.selected_group_idx) {
+                    if file_idx + 1 < group.files.len() {
+                        // Move to next file in same folder
+                        self.selected_file_in_group = Some(file_idx + 1);
+                    } else {
+                        // Move to next folder header
+                        self.selected_group_idx =
+                            (self.selected_group_idx + 1) % self.file_groups.len();
+                        self.selected_file_in_group = None;
+                    }
+                }
+            }
+        }
+
+        // Keep legacy selection in sync for toggle_file_staging
+        self.sync_legacy_selection();
+    }
+
+    /// Navigate to previous item in commit screen
+    fn commit_navigate_prev(&mut self) {
+        if self.file_groups.is_empty() {
+            return;
+        }
+
+        match self.selected_file_in_group {
+            None => {
+                // On folder header, move to previous folder's last file (if expanded) or header
+                if self.selected_group_idx == 0 {
+                    self.selected_group_idx = self.file_groups.len() - 1;
+                } else {
+                    self.selected_group_idx -= 1;
+                }
+
+                // If previous folder is expanded, go to its last file
+                if let Some(prev_group) = self.file_groups.get(self.selected_group_idx) {
+                    if prev_group.expanded && !prev_group.files.is_empty() {
+                        self.selected_file_in_group = Some(prev_group.files.len() - 1);
+                    }
+                }
+            }
+            Some(file_idx) => {
+                if file_idx > 0 {
+                    // Move to previous file in same folder
+                    self.selected_file_in_group = Some(file_idx - 1);
+                } else {
+                    // Move to folder header
+                    self.selected_file_in_group = None;
+                }
+            }
+        }
+
+        // Keep legacy selection in sync for toggle_file_staging
+        self.sync_legacy_selection();
+    }
+
+    /// Sync the legacy flat selection with the grouped selection
+    fn sync_legacy_selection(&mut self) {
+        if let Some(file_idx) = self.selected_file_in_group {
+            if let Some(group) = self.file_groups.get(self.selected_group_idx) {
+                if let Some(file) = group.files.get(file_idx) {
+                    // Find this file's index in the flat list
+                    if let Some(flat_idx) =
+                        self.changed_files.iter().position(|f| f.path == file.path)
+                    {
+                        self.commit_file_selection.selected = flat_idx;
+                    }
+                }
+            }
+        }
+    }
+
+    /// Unstage all files
+    fn unstage_all_files(&mut self) {
+        if let Ok(repo) = GitRepository::open_current_dir() {
+            for file in &self.changed_files {
+                if file.is_staged {
+                    let _ = repo.unstage_file(&file.path);
+                }
+            }
+        }
+        self.refresh_changed_files();
+        self.status_message = Some("Unstaged all files".to_string());
     }
 
     fn handle_settings_key(&mut self, key: KeyEvent) {
@@ -2253,6 +2458,8 @@ impl App {
                     if self.changed_files.is_empty() {
                         self.status_message = Some("No changes to commit".to_string());
                     }
+                    // Build file groups for directory-based display
+                    self.build_file_groups();
                 }
                 Err(e) => {
                     self.status_message = Some(format!("Error: {}", e));
@@ -2261,6 +2468,70 @@ impl App {
             Err(e) => {
                 self.status_message = Some(format!("Error: {}", e));
             }
+        }
+    }
+
+    /// Build file groups from the flat file list
+    fn build_file_groups(&mut self) {
+        use std::collections::BTreeMap;
+        use std::path::Path;
+
+        let mut groups: BTreeMap<String, Vec<FileStatus>> = BTreeMap::new();
+
+        for file in &self.changed_files {
+            let dir = Path::new(&file.path)
+                .parent()
+                .map(|p| {
+                    let s = p.to_string_lossy().to_string();
+                    if s.is_empty() {
+                        ".".to_string()
+                    } else {
+                        s
+                    }
+                })
+                .unwrap_or_else(|| ".".to_string());
+            groups.entry(dir).or_default().push(file.clone());
+        }
+
+        // Preserve expansion state from previous groups
+        let was_expanded: HashMap<String, bool> = self
+            .file_groups
+            .iter()
+            .map(|g| (g.directory.clone(), g.expanded))
+            .collect();
+
+        self.file_groups = groups
+            .into_iter()
+            .map(|(directory, files)| FileGroup {
+                expanded: *was_expanded.get(&directory).unwrap_or(&true),
+                directory,
+                files,
+            })
+            .collect();
+
+        // Reset selection if out of bounds
+        if self.selected_group_idx >= self.file_groups.len() {
+            self.selected_group_idx = 0;
+            self.selected_file_in_group = None;
+        }
+    }
+
+    /// Toggle staging for a folder (all files in the group)
+    fn toggle_folder_staging(&mut self, group_idx: usize) {
+        if let Some(group) = self.file_groups.get(group_idx) {
+            let all_staged = group.all_staged();
+            let paths: Vec<String> = group.files.iter().map(|f| f.path.clone()).collect();
+
+            if let Ok(repo) = GitRepository::open_current_dir() {
+                for path in &paths {
+                    if all_staged {
+                        let _ = repo.unstage_file(path);
+                    } else {
+                        let _ = repo.stage_file(path);
+                    }
+                }
+            }
+            self.refresh_changed_files();
         }
     }
 

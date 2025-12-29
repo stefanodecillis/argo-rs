@@ -18,8 +18,23 @@ pub async fn handle_commit(args: CommitArgs) -> Result<()> {
         .unwrap_or_else(|| format!("origin/{}", branch));
     println!("On branch {} → {}", branch, tracking);
 
-    // Stage all if requested
-    if args.all {
+    // Stage specified paths if provided
+    if !args.paths.is_empty() {
+        for path in &args.paths {
+            if path.is_dir() {
+                git.stage_directory(path)?;
+                println!("  Staged directory: {}/", path.display());
+            } else if path.exists() {
+                git.stage_file(&path.to_string_lossy())?;
+                println!("  Staged: {}", path.display());
+            } else {
+                // Try as a pattern (file might be deleted or path is relative)
+                git.stage_file(&path.to_string_lossy())?;
+                println!("  Staged: {}", path.display());
+            }
+        }
+    } else if args.all {
+        // Stage all if requested (only if no explicit paths provided)
         git.stage_all()?;
         println!("Staged all modified files.");
     }

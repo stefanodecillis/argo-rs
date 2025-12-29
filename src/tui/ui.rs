@@ -284,7 +284,7 @@ fn consume_until_char(chars: &mut std::iter::Peekable<std::str::Chars>, delimite
 use octocrab::models::IssueState;
 
 use crate::github::workflow::{WorkflowConclusion, WorkflowRunStatus};
-use crate::tui::app::{App, Screen};
+use crate::tui::app::{App, ErrorPopup, Screen};
 use crate::tui::theme::Theme;
 
 /// Render the UI
@@ -305,6 +305,11 @@ pub fn render(frame: &mut Frame, app: &App) {
     // Render help overlay on top if active
     if app.show_help {
         render_help_overlay(frame, app);
+    }
+
+    // Render error popup overlay (highest priority, always on top)
+    if let Some(popup) = &app.error_popup {
+        render_error_popup(frame, popup);
     }
 }
 
@@ -1370,6 +1375,78 @@ fn render_branch_selector(
     }
 }
 
+/// Build list items for the grouped file display in commit screen
+fn build_grouped_file_items(app: &App) -> Vec<ListItem<'static>> {
+    let mut items = Vec::new();
+
+    for (group_idx, group) in app.file_groups.iter().enumerate() {
+        let is_group_selected =
+            app.selected_group_idx == group_idx && app.selected_file_in_group.is_none();
+
+        // Folder header line
+        let arrow = if group.expanded { "▼" } else { "▶" };
+        let dir_display = if group.directory == "." {
+            "(root)".to_string()
+        } else {
+            format!("{}/", group.directory)
+        };
+        let header_text = format!(
+            " {} {} ({}/{} staged)",
+            arrow,
+            dir_display,
+            group.staged_count(),
+            group.files.len()
+        );
+
+        let header_style = if is_group_selected {
+            Theme::selected()
+        } else if group.all_staged() {
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD)
+        };
+
+        items.push(ListItem::new(header_text).style(header_style));
+
+        // Files under this folder (if expanded)
+        if group.expanded {
+            for (file_idx, file) in group.files.iter().enumerate() {
+                let is_file_selected = app.selected_group_idx == group_idx
+                    && app.selected_file_in_group == Some(file_idx);
+
+                let checkbox = if file.is_staged { "[✓]" } else { "[ ]" };
+                let status = file.status_char();
+                // Show just the filename, not the full path (since directory is in header)
+                let filename = std::path::Path::new(&file.path)
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| file.path.clone());
+                let file_text = format!("   {} {} {}", checkbox, status, filename);
+
+                let file_style = if is_file_selected {
+                    Theme::selected()
+                } else if file.is_staged {
+                    Style::default().fg(Color::Green)
+                } else if file.is_new {
+                    Style::default().fg(Color::Yellow)
+                } else if file.is_deleted {
+                    Style::default().fg(Color::Red)
+                } else {
+                    Style::default()
+                };
+
+                items.push(ListItem::new(file_text).style(file_style));
+            }
+        }
+    }
+
+    items
+}
+
 /// Render the commit screen
 fn render_commit_screen(frame: &mut Frame, area: Rect, app: &App) {
     // Split into file list, optional message input/push prompt, and help bar
@@ -1410,33 +1487,8 @@ fn render_commit_screen(frame: &mut Frame, area: Rect, app: &App) {
         // Count staged files
         let staged_count = app.changed_files.iter().filter(|f| f.is_staged).count();
 
-        let items: Vec<ListItem> = app
-            .changed_files
-            .iter()
-            .enumerate()
-            .map(|(i, file)| {
-                let checkbox = if file.is_staged { "[✓]" } else { "[ ]" };
-                let status = file.status_char();
-                let text = format!(" {} {} {}", checkbox, status, file.path);
-                let item = ListItem::new(text);
-
-                let style = if file.is_staged {
-                    Style::default().fg(Color::Green)
-                } else if file.is_new {
-                    Style::default().fg(Color::Yellow)
-                } else if file.is_deleted {
-                    Style::default().fg(Color::Red)
-                } else {
-                    Style::default()
-                };
-
-                if i == app.commit_file_selection.selected {
-                    item.style(Theme::selected())
-                } else {
-                    item.style(style)
-                }
-            })
-            .collect();
+        // Build items from file groups
+        let items: Vec<ListItem> = build_grouped_file_items(app);
 
         let title = format!(
             " Create Commit ({}/{} staged) ",
@@ -1899,6 +1951,83 @@ fn render_help_overlay(frame: &mut Frame, app: &App) {
     frame.render_widget(help, popup_area);
 }
 
+/// Render an error popup overlay
+fn render_error_popup(frame: &mut Frame, popup: &ErrorPopup) {
+    let area = frame.area();
+
+    // Calculate centered popup area (60% width, 40% height max)
+    let popup_width = (area.width * 60 / 100).clamp(40, 70);
+    let popup_height = (area.height * 40 / 100).clamp(7, 15);
+    let popup_x = (area.width.saturating_sub(popup_width)) / 2;
+    let popup_y = (area.height.saturating_sub(popup_height)) / 2;
+
+    let popup_area = Rect::new(popup_x, popup_y, popup_width, popup_height);
+
+    // Clear the area behind the popup
+    frame.render_widget(Clear, popup_area);
+
+    // Create bordered block with red border
+    let block = Block::default()
+        .title(format!(" {} ", popup.title))
+        .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Red));
+
+    let inner = block.inner(popup_area);
+    frame.render_widget(block, popup_area);
+
+    // Build text content with word wrapping
+    let inner_width = inner.width.saturating_sub(2) as usize;
+    let wrapped_lines: Vec<&str> = popup
+        .message
+        .split('\n')
+        .flat_map(|line| {
+            if line.len() <= inner_width {
+                vec![line]
+            } else {
+                // Simple word wrapping
+                let mut lines = Vec::new();
+                let mut current_line = String::new();
+                for word in line.split_whitespace() {
+                    if current_line.is_empty() {
+                        current_line = word.to_string();
+                    } else if current_line.len() + 1 + word.len() <= inner_width {
+                        current_line.push(' ');
+                        current_line.push_str(word);
+                    } else {
+                        lines.push(current_line);
+                        current_line = word.to_string();
+                    }
+                }
+                if !current_line.is_empty() {
+                    lines.push(current_line);
+                }
+                // Convert owned Strings to &str via leak (acceptable for temporary UI)
+                lines
+                    .into_iter()
+                    .map(|s| -> &'static str { Box::leak(s.into_boxed_str()) })
+                    .collect()
+            }
+        })
+        .collect();
+
+    let mut lines: Vec<Line> = wrapped_lines
+        .into_iter()
+        .map(|s| Line::from(Span::styled(s, Style::default().fg(Color::White))))
+        .collect();
+
+    // Add blank line and dismiss hint
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        "Press Enter or Esc to dismiss",
+        Style::default().fg(Color::DarkGray),
+    )));
+
+    let paragraph = Paragraph::new(lines).wrap(Wrap { trim: false });
+
+    frame.render_widget(paragraph, inner);
+}
+
 /// Get help content for the current screen
 fn get_help_content(screen: Screen) -> (&'static str, Vec<(&'static str, &'static str)>) {
     let global_keys = vec![
@@ -1960,11 +2089,13 @@ fn get_help_content(screen: Screen) -> (&'static str, Vec<(&'static str, &'stati
         Screen::Commit => (
             "Help - Commit",
             vec![
-                ("Space", "Toggle file staging"),
-                ("g", "Generate AI message"),
-                ("Enter", "Commit changes"),
-                ("Esc", "Cancel / Go back"),
-                ("?", "Show this help"),
+                ("j / k", "Navigate files/folders"),
+                ("Space", "Toggle staging (file or folder)"),
+                ("Enter", "Expand/collapse folder"),
+                ("a", "Stage all files"),
+                ("u", "Unstage all files"),
+                ("c / g", "Commit / Generate AI message"),
+                ("Esc", "Go back"),
             ],
         ),
         Screen::PrCreate => (

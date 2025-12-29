@@ -1933,9 +1933,100 @@ fn render_tags(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(list, chunks[0]);
 
     let help =
-        Paragraph::new(" [r] Refresh  [p] Push selected  [P] Push all  [j/k] Navigate  [Esc] Back")
+        Paragraph::new(" [n] New  [r] Refresh  [p] Push  [P] Push all  [j/k] Navigate  [Esc] Back")
             .style(Theme::muted());
     frame.render_widget(help, chunks[1]);
+
+    // Render tag creation popup if active
+    if app.tag_create_mode {
+        render_tag_create_popup(frame, app);
+    }
+}
+
+/// Render the tag creation popup
+fn render_tag_create_popup(frame: &mut Frame, app: &App) {
+    let area = frame.area();
+
+    // Centered popup
+    let popup_width = 50_u16;
+    let popup_height = 12_u16;
+    let popup_x = (area.width.saturating_sub(popup_width)) / 2;
+    let popup_y = (area.height.saturating_sub(popup_height)) / 2;
+
+    let popup_area = Rect::new(popup_x, popup_y, popup_width, popup_height);
+
+    // Clear the area behind the popup
+    frame.render_widget(Clear, popup_area);
+
+    // Build content
+    let mut lines: Vec<Line> = Vec::new();
+    lines.push(Line::from(""));
+
+    // Tag name field
+    let name_style = if app.tag_create_field == 0 {
+        Style::default().fg(Color::Yellow)
+    } else {
+        Style::default().fg(Color::White)
+    };
+    let name_cursor = if app.tag_create_field == 0 { "█" } else { "" };
+    lines.push(Line::from(vec![
+        Span::styled("  Tag name: ", Style::default().fg(Color::Cyan)),
+        Span::styled(&app.tag_create_name, name_style),
+        Span::styled(name_cursor, Style::default().fg(Color::Yellow)),
+    ]));
+
+    lines.push(Line::from(""));
+
+    // Message field (optional)
+    let msg_style = if app.tag_create_field == 1 {
+        Style::default().fg(Color::Yellow)
+    } else {
+        Style::default().fg(Color::White)
+    };
+    let msg_cursor = if app.tag_create_field == 1 { "█" } else { "" };
+    lines.push(Line::from(vec![
+        Span::styled("  Message:  ", Style::default().fg(Color::Cyan)),
+        Span::styled(&app.tag_create_message, msg_style),
+        Span::styled(msg_cursor, Style::default().fg(Color::Yellow)),
+    ]));
+    lines.push(Line::from(Span::styled(
+        "              (optional, for annotated tag)",
+        Style::default().fg(Color::DarkGray),
+    )));
+
+    lines.push(Line::from(""));
+
+    // Confirm button
+    let confirm_style = if app.tag_create_field == 2 {
+        Style::default()
+            .fg(Color::Black)
+            .bg(Color::Green)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Green)
+    };
+    lines.push(Line::from(vec![
+        Span::raw("              "),
+        Span::styled(" Create & Push ", confirm_style),
+    ]));
+
+    lines.push(Line::from(""));
+    lines.push(Line::from(
+        "─".repeat(popup_width.saturating_sub(2) as usize),
+    ));
+    lines.push(Line::from(Span::styled(
+        "  [Tab] Next  [Enter] Confirm  [Esc] Cancel",
+        Style::default().fg(Color::DarkGray),
+    )));
+
+    let paragraph = Paragraph::new(lines).block(
+        Block::default()
+            .title(" Create Tag ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan)),
+    );
+
+    frame.render_widget(paragraph, popup_area);
 }
 
 fn render_workflow_runs(frame: &mut Frame, area: Rect, app: &App) {

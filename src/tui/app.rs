@@ -433,6 +433,17 @@ pub struct App {
     pub tags_error: Option<String>,
     /// Tags list selection
     pub tags_selection: ListState,
+    /// Tag creation mode active
+    pub tag_create_mode: bool,
+    /// Tag name being entered
+    pub tag_create_name: String,
+    /// Tag message being entered (for annotated tags)
+    pub tag_create_message: String,
+    /// Current field in tag creation (0=name, 1=message, 2=confirm)
+    pub tag_create_field: usize,
+
+    /// Post-commit tag creation prompt
+    pub commit_tag_prompt: bool,
 
     // ─────────────────────────────────────────────────────────────────────────
     // Update state
@@ -569,6 +580,11 @@ impl App {
             tags_fetched: false,
             tags_error: None,
             tags_selection: ListState::default(),
+            tag_create_mode: false,
+            tag_create_name: String::new(),
+            tag_create_message: String::new(),
+            tag_create_field: 0,
+            commit_tag_prompt: false,
 
             // Update state
             update_state: crate::core::UpdateState::Idle,
@@ -779,7 +795,9 @@ impl App {
                 self.commit_push_prompt = false;
                 self.last_commit_hash = None;
                 self.commit_tracking_branch = None;
-                self.status_message = Some(format!("✓ Pushed to {}", tracking));
+                self.commit_tag_prompt = true;
+                self.status_message =
+                    Some(format!("✓ Pushed to {}. Create a tag? [y/n]", tracking));
             }
             AsyncMessage::PushError(err) => {
                 self.commit_push_loading = false;
@@ -1518,6 +1536,12 @@ impl App {
             }
         }
 
+        // If in tag creation mode, handle it directly (bypass global handlers)
+        if self.tag_create_mode {
+            self.handle_tag_create_key(key);
+            return;
+        }
+
         // Global key handlers
         if key.code == KeyCode::Char('?') {
             self.show_help = true;
@@ -1545,7 +1569,13 @@ impl App {
             Screen::PrDetail(_) => self.handle_pr_detail_key(key),
             Screen::PrCreate => self.handle_pr_create_key(key),
             Screen::Commit => self.handle_commit_key(key),
-            Screen::Tags => self.handle_tags_key(key),
+            Screen::Tags => {
+                if self.tag_create_mode {
+                    self.handle_tag_create_key(key);
+                } else {
+                    self.handle_tags_key(key);
+                }
+            }
             Screen::Settings => self.handle_settings_key(key),
             Screen::WorkflowRuns => self.handle_workflow_runs_key(key),
             _ => {}
@@ -2106,6 +2136,28 @@ impl App {
                     self.last_commit_hash = None;
                     self.commit_tracking_branch = None;
                     self.status_message = Some("Push skipped".to_string());
+                }
+                _ => {}
+            }
+            return;
+        }
+
+        // If tag prompt is showing after push, handle tag creation choice
+        if self.commit_tag_prompt {
+            match key.code {
+                KeyCode::Char('y') | KeyCode::Char('Y') => {
+                    // Navigate to tags screen with create mode active
+                    self.commit_tag_prompt = false;
+                    self.navigate_to(Screen::Tags);
+                    // Trigger tag creation mode after navigating
+                    self.tag_create_mode = true;
+                    self.tag_create_name.clear();
+                    self.tag_create_message.clear();
+                    self.tag_create_field = 0;
+                }
+                KeyCode::Esc | KeyCode::Char('n') | KeyCode::Char('N') => {
+                    self.commit_tag_prompt = false;
+                    self.status_message = Some("Tag creation skipped".to_string());
                 }
                 _ => {}
             }
@@ -3094,6 +3146,13 @@ impl App {
                 // Push all tags
                 self.push_all_tags();
             }
+            KeyCode::Char('n') => {
+                // Enter tag creation mode
+                self.tag_create_mode = true;
+                self.tag_create_name.clear();
+                self.tag_create_message.clear();
+                self.tag_create_field = 0;
+            }
             _ => {}
         }
     }
@@ -3148,6 +3207,113 @@ impl App {
                 }
                 Err(e) => {
                     let _ = tx.send(AsyncMessage::TagPushError(e.to_string())).await;
+                }
+            }
+        });
+    }
+
+    /// Handle key events when in tag creation mode
+    fn handle_tag_create_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Esc => {
+                self.tag_create_mode = false;
+            }
+            KeyCode::Tab => {
+                // Cycle through fields: name -> message -> confirm -> name
+                self.tag_create_field = (self.tag_create_field + 1) % 3;
+            }
+            KeyCode::BackTab => {
+                // Cycle backwards
+                self.tag_create_field = if self.tag_create_field == 0 {
+                    2
+                } else {
+                    self.tag_create_field - 1
+                };
+            }
+            KeyCode::Enter => {
+                if self.tag_create_field == 2 {
+                    // On confirm field, create the tag
+                    self.create_tag_from_input();
+                } else {
+                    // Move to next field
+                    self.tag_create_field = (self.tag_create_field + 1) % 3;
+                }
+            }
+            KeyCode::Char(c) => match self.tag_create_field {
+                0 => self.tag_create_name.push(c),
+                1 => self.tag_create_message.push(c),
+                _ => {}
+            },
+            KeyCode::Backspace => match self.tag_create_field {
+                0 => {
+                    self.tag_create_name.pop();
+                }
+                1 => {
+                    self.tag_create_message.pop();
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+    }
+
+    /// Create a tag from the input fields and push it
+    fn create_tag_from_input(&mut self) {
+        let name = self.tag_create_name.trim().to_string();
+        if name.is_empty() {
+            self.error_popup = Some(ErrorPopup {
+                title: "Tag Creation Failed".to_string(),
+                message: "Tag name cannot be empty".to_string(),
+            });
+            return;
+        }
+
+        let message = if self.tag_create_message.trim().is_empty() {
+            None
+        } else {
+            Some(self.tag_create_message.trim().to_string())
+        };
+
+        // Close the popup and show loading state
+        self.tag_create_mode = false;
+        self.tags_loading = true;
+        self.status_message = Some(format!("Creating tag {}...", name));
+
+        let tx = self.async_tx.clone();
+
+        tokio::spawn(async move {
+            use crate::core::git::GitRepository;
+
+            let result = async {
+                let git = GitRepository::open_current_dir()?;
+
+                // Check if tag already exists
+                if git.tag_exists(&name)? {
+                    return Err(crate::error::GhrustError::TagAlreadyExists(name.clone()));
+                }
+
+                // Create the tag (annotated or lightweight)
+                if let Some(ref msg) = message {
+                    git.create_annotated_tag(&name, msg)?;
+                } else {
+                    git.create_tag(&name)?;
+                }
+
+                // Push the tag
+                git.push_tag(&name)?;
+
+                Ok::<_, crate::error::GhrustError>(())
+            }
+            .await;
+
+            match result {
+                Ok(()) => {
+                    let _ = tx
+                        .send(AsyncMessage::TagCreated { name, pushed: true })
+                        .await;
+                }
+                Err(e) => {
+                    let _ = tx.send(AsyncMessage::TagCreateError(e.to_string())).await;
                 }
             }
         });

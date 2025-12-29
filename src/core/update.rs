@@ -14,9 +14,10 @@ use crate::core::config::Config;
 use crate::error::{GhrustError, Result};
 
 /// Current state of the update process
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum UpdateState {
     /// No update check in progress
+    #[default]
     Idle,
     /// Checking GitHub for new version
     Checking,
@@ -30,12 +31,6 @@ pub enum UpdateState {
     Ready(String),
     /// Update check or download failed (silent - no user notification)
     Failed,
-}
-
-impl Default for UpdateState {
-    fn default() -> Self {
-        Self::Idle
-    }
 }
 
 /// Persistent update state stored between sessions

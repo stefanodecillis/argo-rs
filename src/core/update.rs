@@ -120,10 +120,10 @@ pub fn platform_asset_name() -> Option<String> {
     let arch = std::env::consts::ARCH;
 
     let platform = match (os, arch) {
-        ("macos", "aarch64") => "macos-arm64",
+        ("macos", "aarch64") => "macos-aarch64",
         ("macos", "x86_64") => "macos-x86_64",
         ("linux", "x86_64") => "linux-x86_64",
-        ("linux", "aarch64") => "linux-arm64",
+        ("linux", "aarch64") => "linux-aarch64",
         _ => return None, // Unsupported platform
     };
 

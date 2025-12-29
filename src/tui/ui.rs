@@ -1947,9 +1947,12 @@ fn render_tags(frame: &mut Frame, area: Rect, app: &App) {
 fn render_tag_create_popup(frame: &mut Frame, app: &App) {
     let area = frame.area();
 
-    // Centered popup
-    let popup_width = 50_u16;
-    let popup_height = 12_u16;
+    // Fixed height for message area
+    let message_area_height = 5_u16;
+
+    // Centered popup with larger size for multiline
+    let popup_width = 60_u16;
+    let popup_height = 16_u16; // Taller to accommodate message area
     let popup_x = (area.width.saturating_sub(popup_width)) / 2;
     let popup_y = (area.height.saturating_sub(popup_height)) / 2;
 
@@ -1977,22 +1980,68 @@ fn render_tag_create_popup(frame: &mut Frame, app: &App) {
 
     lines.push(Line::from(""));
 
-    // Message field (optional)
+    // Message field label
+    lines.push(Line::from(vec![
+        Span::styled("  Message:  ", Style::default().fg(Color::Cyan)),
+        Span::styled(
+            "(optional, multiline with Enter)",
+            Style::default().fg(Color::DarkGray),
+        ),
+    ]));
+
+    // Message content area - render each line with cursor
     let msg_style = if app.tag_create_field == 1 {
         Style::default().fg(Color::Yellow)
     } else {
         Style::default().fg(Color::White)
     };
-    let msg_cursor = if app.tag_create_field == 1 { "█" } else { "" };
-    lines.push(Line::from(vec![
-        Span::styled("  Message:  ", Style::default().fg(Color::Cyan)),
-        Span::styled(&app.tag_create_message, msg_style),
-        Span::styled(msg_cursor, Style::default().fg(Color::Yellow)),
-    ]));
-    lines.push(Line::from(Span::styled(
-        "              (optional, for annotated tag)",
-        Style::default().fg(Color::DarkGray),
-    )));
+
+    let msg_lines: Vec<&str> = app.tag_create_message.lines().collect();
+    let (cursor_row, cursor_col) = app.tag_create_message_cursor;
+    let max_line_width = (popup_width.saturating_sub(6)) as usize; // Leave margin
+
+    // Display up to message_area_height lines
+    let display_lines = message_area_height as usize;
+    let scroll_offset = if cursor_row >= display_lines {
+        cursor_row - display_lines + 1
+    } else {
+        0
+    };
+
+    for i in 0..display_lines {
+        let actual_line_idx = scroll_offset + i;
+        let line_content = msg_lines.get(actual_line_idx).unwrap_or(&"");
+
+        // Truncate line if too long (with indicator)
+        let truncated: String = if line_content.len() > max_line_width {
+            format!("{}…", &line_content[..max_line_width - 1])
+        } else {
+            line_content.to_string()
+        };
+
+        // Add cursor if this is the active line and field is selected
+        if app.tag_create_field == 1 && actual_line_idx == cursor_row {
+            let col = cursor_col.min(line_content.len());
+            let col_in_truncated = col.min(truncated.len());
+            let before_cursor = truncated[..col_in_truncated].to_string();
+            let after_cursor = if col_in_truncated < truncated.len() {
+                truncated[col_in_truncated..].to_string()
+            } else {
+                String::new()
+            };
+            lines.push(Line::from(vec![
+                Span::raw("    "),
+                Span::styled(before_cursor, msg_style),
+                Span::styled("█", Style::default().fg(Color::Yellow)),
+                Span::styled(after_cursor, msg_style),
+            ]));
+        } else {
+            lines.push(Line::from(vec![
+                Span::raw("    "),
+                Span::styled(truncated, msg_style),
+            ]));
+        }
+    }
 
     lines.push(Line::from(""));
 
@@ -2015,7 +2064,7 @@ fn render_tag_create_popup(frame: &mut Frame, app: &App) {
         "─".repeat(popup_width.saturating_sub(2) as usize),
     ));
     lines.push(Line::from(Span::styled(
-        "  [Tab] Next  [Enter] Confirm  [Esc] Cancel",
+        "  [Tab] Next  [↑↓] Lines  [Enter] Newline  [Esc] Cancel",
         Style::default().fg(Color::DarkGray),
     )));
 

@@ -439,6 +439,8 @@ pub struct App {
     pub tag_create_name: String,
     /// Tag message being entered (for annotated tags)
     pub tag_create_message: String,
+    /// Cursor position in tag message (row, col)
+    pub tag_create_message_cursor: (usize, usize),
     /// Current field in tag creation (0=name, 1=message, 2=confirm)
     pub tag_create_field: usize,
 
@@ -583,6 +585,7 @@ impl App {
             tag_create_mode: false,
             tag_create_name: String::new(),
             tag_create_message: String::new(),
+            tag_create_message_cursor: (0, 0),
             tag_create_field: 0,
             commit_tag_prompt: false,
 
@@ -983,7 +986,8 @@ impl App {
                     format!("Created tag: {}", name)
                 };
                 self.status_message = Some(msg);
-                // Refresh tags list
+                // Reset loading state before refresh (otherwise fetch_tags returns early)
+                self.tags_loading = false;
                 self.tags_fetched = false;
                 self.fetch_tags();
             }
@@ -2153,6 +2157,7 @@ impl App {
                     self.tag_create_mode = true;
                     self.tag_create_name.clear();
                     self.tag_create_message.clear();
+                    self.tag_create_message_cursor = (0, 0);
                     self.tag_create_field = 0;
                 }
                 KeyCode::Esc | KeyCode::Char('n') | KeyCode::Char('N') => {
@@ -3151,6 +3156,7 @@ impl App {
                 self.tag_create_mode = true;
                 self.tag_create_name.clear();
                 self.tag_create_message.clear();
+                self.tag_create_message_cursor = (0, 0);
                 self.tag_create_field = 0;
             }
             _ => {}
@@ -3231,17 +3237,78 @@ impl App {
                 };
             }
             KeyCode::Enter => {
-                if self.tag_create_field == 2 {
-                    // On confirm field, create the tag
-                    self.create_tag_from_input();
-                } else {
-                    // Move to next field
-                    self.tag_create_field = (self.tag_create_field + 1) % 3;
+                match self.tag_create_field {
+                    0 => {
+                        // Move to message field
+                        self.tag_create_field = 1;
+                    }
+                    1 => {
+                        // Insert newline in message field
+                        let lines: Vec<&str> = self.tag_create_message.lines().collect();
+                        let (row, col) = self.tag_create_message_cursor;
+
+                        let mut new_message = String::new();
+                        for (i, line) in lines.iter().enumerate() {
+                            if i == row {
+                                let col = col.min(line.len());
+                                new_message.push_str(&line[..col]);
+                                new_message.push('\n');
+                                new_message.push_str(&line[col..]);
+                            } else {
+                                new_message.push_str(line);
+                            }
+                            if i < lines.len() - 1 {
+                                new_message.push('\n');
+                            }
+                        }
+                        // Handle empty message or cursor at end
+                        if lines.is_empty() || row >= lines.len() {
+                            new_message.push('\n');
+                        }
+                        self.tag_create_message = new_message;
+                        self.tag_create_message_cursor = (row + 1, 0);
+                    }
+                    2 => {
+                        // On confirm field, create the tag
+                        self.create_tag_from_input();
+                    }
+                    _ => {}
+                }
+            }
+            // Up/Down: navigate within message body
+            KeyCode::Up => {
+                if self.tag_create_field == 1 && self.tag_create_message_cursor.0 > 0 {
+                    self.tag_create_message_cursor.0 -= 1;
+                }
+            }
+            KeyCode::Down => {
+                if self.tag_create_field == 1 {
+                    let line_count = self.tag_create_message.lines().count().max(1);
+                    if self.tag_create_message_cursor.0 < line_count - 1 {
+                        self.tag_create_message_cursor.0 += 1;
+                    }
+                }
+            }
+            // Left/Right: move cursor in text fields
+            KeyCode::Left => {
+                if self.tag_create_field == 1 && self.tag_create_message_cursor.1 > 0 {
+                    self.tag_create_message_cursor.1 -= 1;
+                }
+            }
+            KeyCode::Right => {
+                if self.tag_create_field == 1 {
+                    let lines: Vec<&str> = self.tag_create_message.lines().collect();
+                    let (row, col) = self.tag_create_message_cursor;
+                    if let Some(line) = lines.get(row) {
+                        if col < line.len() {
+                            self.tag_create_message_cursor.1 = col + 1;
+                        }
+                    }
                 }
             }
             KeyCode::Char(c) => match self.tag_create_field {
                 0 => self.tag_create_name.push(c),
-                1 => self.tag_create_message.push(c),
+                1 => self.insert_char_at_tag_message_cursor(c),
                 _ => {}
             },
             KeyCode::Backspace => match self.tag_create_field {
@@ -3249,12 +3316,81 @@ impl App {
                     self.tag_create_name.pop();
                 }
                 1 => {
-                    self.tag_create_message.pop();
+                    // Delete character in message at cursor
+                    if !self.tag_create_message.is_empty() {
+                        let lines: Vec<&str> = self.tag_create_message.lines().collect();
+                        let (row, col) = self.tag_create_message_cursor;
+
+                        if col > 0 {
+                            // Delete character before cursor
+                            let mut new_message = String::new();
+                            for (i, line) in lines.iter().enumerate() {
+                                if i == row {
+                                    let col = col.min(line.len());
+                                    if col > 0 {
+                                        new_message.push_str(&line[..col - 1]);
+                                        new_message.push_str(&line[col..]);
+                                    } else {
+                                        new_message.push_str(line);
+                                    }
+                                } else {
+                                    new_message.push_str(line);
+                                }
+                                if i < lines.len() - 1 {
+                                    new_message.push('\n');
+                                }
+                            }
+                            self.tag_create_message = new_message;
+                            self.tag_create_message_cursor.1 = col.saturating_sub(1);
+                        } else if row > 0 {
+                            // Join with previous line (remove the newline between them)
+                            let mut new_message = String::new();
+                            let prev_line_len = lines.get(row - 1).map(|l| l.len()).unwrap_or(0);
+                            for (i, line) in lines.iter().enumerate() {
+                                new_message.push_str(line);
+                                // Add newline after every line except:
+                                // - The last line (i == lines.len() - 1)
+                                // - The line before the one being joined (row - 1)
+                                if i < lines.len() - 1 && i != row - 1 {
+                                    new_message.push('\n');
+                                }
+                            }
+                            self.tag_create_message = new_message;
+                            self.tag_create_message_cursor = (row - 1, prev_line_len);
+                        }
+                    }
                 }
                 _ => {}
             },
             _ => {}
         }
+    }
+
+    /// Insert a character at the current tag message cursor position
+    fn insert_char_at_tag_message_cursor(&mut self, c: char) {
+        let lines: Vec<&str> = self.tag_create_message.lines().collect();
+        let (row, col) = self.tag_create_message_cursor;
+
+        let mut new_message = String::new();
+        if lines.is_empty() {
+            new_message.push(c);
+        } else {
+            for (i, line) in lines.iter().enumerate() {
+                if i == row {
+                    let col = col.min(line.len());
+                    new_message.push_str(&line[..col]);
+                    new_message.push(c);
+                    new_message.push_str(&line[col..]);
+                } else {
+                    new_message.push_str(line);
+                }
+                if i < lines.len() - 1 {
+                    new_message.push('\n');
+                }
+            }
+        }
+        self.tag_create_message = new_message;
+        self.tag_create_message_cursor.1 = col + 1;
     }
 
     /// Create a tag from the input fields and push it

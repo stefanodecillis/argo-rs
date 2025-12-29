@@ -24,7 +24,7 @@ use crate::error::{GhrustError, Result};
 use crate::github::branch::{BranchHandler, BranchInfo};
 use crate::github::client::GitHubClient;
 use crate::github::pull_request::{
-    CreatePrParams, PrState, PullRequestHandler, Reaction, ReactionType,
+    CreatePrParams, MergeMethod, PrState, PullRequestHandler, Reaction, ReactionType,
 };
 use crate::github::workflow::{WorkflowHandler, WorkflowRunInfo};
 use crate::tui::event::{is_back_key, is_quit_key, AppEvent, EventHandler};
@@ -98,6 +98,37 @@ pub enum AsyncMessage {
     ReactionRemoveError(String),
 
     // ─────────────────────────────────────────────────────────────────────────
+    // PR Merge messages
+    // ─────────────────────────────────────────────────────────────────────────
+    /// PR merged successfully
+    PrMerged(u64),
+    /// PR merge failed
+    PrMergeError(String),
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Tag messages
+    // ─────────────────────────────────────────────────────────────────────────
+    /// Tags loaded successfully
+    TagsLoaded {
+        local_tags: Vec<crate::core::git::LocalTagInfo>,
+        remote_tags: Vec<String>,
+    },
+    /// Tags load failed
+    TagsError(String),
+    /// Tag created successfully
+    TagCreated { name: String, pushed: bool },
+    /// Tag creation failed
+    TagCreateError(String),
+    /// Tag deleted successfully
+    TagDeleted { name: String },
+    /// Tag deletion failed
+    TagDeleteError(String),
+    /// Tag pushed successfully
+    TagPushed(String),
+    /// Tag push failed
+    TagPushError(String),
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Update messages
     // ─────────────────────────────────────────────────────────────────────────
     /// Update check completed - up to date
@@ -123,6 +154,7 @@ pub enum Screen {
     PrDetail(u64),
     PrCreate,
     Commit,
+    Tags,
     Settings,
     Auth,
     WorkflowRuns,
@@ -275,6 +307,18 @@ pub struct App {
     pub pr_workflow_runs_loading: bool,
 
     // ─────────────────────────────────────────────────────────────────────────
+    // PR Merge dialog
+    // ─────────────────────────────────────────────────────────────────────────
+    /// Whether merge dialog is open
+    pub merge_dialog_open: bool,
+    /// Selected merge method (0=Merge, 1=Squash, 2=Rebase)
+    pub merge_method_selection: usize,
+    /// Whether to delete branch after merge
+    pub merge_delete_branch: bool,
+    /// Whether merge is in progress
+    pub merge_in_progress: bool,
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Auth/Settings data
     // ─────────────────────────────────────────────────────────────────────────
     /// GitHub authentication status
@@ -375,6 +419,22 @@ pub struct App {
     pub pr_workflow_branch: Option<String>,
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Tags data
+    // ─────────────────────────────────────────────────────────────────────────
+    /// List of local tags
+    pub tags_local: Vec<crate::core::git::LocalTagInfo>,
+    /// List of remote tag names
+    pub tags_remote: Vec<String>,
+    /// Whether tags are loading
+    pub tags_loading: bool,
+    /// Whether we've attempted to fetch tags
+    pub tags_fetched: bool,
+    /// Error message if tags fetch failed
+    pub tags_error: Option<String>,
+    /// Tags list selection
+    pub tags_selection: ListState,
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Update state
     // ─────────────────────────────────────────────────────────────────────────
     /// Current update state
@@ -407,7 +467,7 @@ impl App {
             current_screen: Screen::Dashboard,
             navigation_stack: Vec::new(),
             repository: None,
-            dashboard_selection: ListState::new(6), // 6 menu items (including Workflows)
+            dashboard_selection: ListState::new(7), // 7 menu items (including Tags, Workflows)
             pr_list_selection: ListState::default(),
             status_message: None,
             show_help: false,
@@ -445,6 +505,12 @@ impl App {
             reaction_submitting: false,
             pr_workflow_runs: Vec::new(),
             pr_workflow_runs_loading: false,
+
+            // PR Merge dialog
+            merge_dialog_open: false,
+            merge_method_selection: 0,
+            merge_delete_branch: true, // Default to deleting branch (common workflow)
+            merge_in_progress: false,
 
             // Auth/Settings
             github_authenticated,
@@ -495,6 +561,14 @@ impl App {
             tick_counter: 0,
             workflow_runs_last_poll_tick: 0,
             pr_workflow_branch: None,
+
+            // Tags
+            tags_local: Vec::new(),
+            tags_remote: Vec::new(),
+            tags_loading: false,
+            tags_fetched: false,
+            tags_error: None,
+            tags_selection: ListState::default(),
 
             // Update state
             update_state: crate::core::UpdateState::Idle,
@@ -820,6 +894,25 @@ impl App {
                 self.status_message = Some(format!("Failed to remove reaction: {}", err));
             }
 
+            // PR Merge messages
+            AsyncMessage::PrMerged(pr_number) => {
+                self.merge_in_progress = false;
+                self.merge_dialog_open = false;
+                self.status_message = Some(format!("PR #{} merged successfully!", pr_number));
+                // Refresh PR detail to show merged state
+                self.fetch_pr_detail(pr_number);
+                // Also fetch comments in case there are new auto-comments
+                self.fetch_pr_comments(pr_number);
+            }
+            AsyncMessage::PrMergeError(err) => {
+                self.merge_in_progress = false;
+                self.merge_dialog_open = false;
+                self.error_popup = Some(ErrorPopup {
+                    title: "Merge Failed".to_string(),
+                    message: err,
+                });
+            }
+
             // Update messages
             AsyncMessage::UpdateUpToDate => {
                 self.update_state = crate::core::UpdateState::UpToDate;
@@ -843,6 +936,68 @@ impl App {
             AsyncMessage::UpdateFailed => {
                 // Silent failure - just reset to idle
                 self.update_state = crate::core::UpdateState::Idle;
+            }
+
+            // ─────────────────────────────────────────────────────────────────
+            // Tag messages
+            // ─────────────────────────────────────────────────────────────────
+            AsyncMessage::TagsLoaded {
+                local_tags,
+                remote_tags,
+            } => {
+                self.tags_local = local_tags;
+                self.tags_remote = remote_tags;
+                self.tags_loading = false;
+                self.tags_fetched = true;
+                self.tags_error = None;
+                self.tags_selection = ListState::new(self.tags_local.len());
+                self.status_message = Some(format!("Loaded {} local tags", self.tags_local.len()));
+            }
+            AsyncMessage::TagsError(err) => {
+                self.tags_loading = false;
+                self.tags_error = Some(err.clone());
+                self.status_message = Some(format!("Failed to load tags: {}", err));
+            }
+            AsyncMessage::TagCreated { name, pushed } => {
+                let msg = if pushed {
+                    format!("Created and pushed tag: {}", name)
+                } else {
+                    format!("Created tag: {}", name)
+                };
+                self.status_message = Some(msg);
+                // Refresh tags list
+                self.tags_fetched = false;
+                self.fetch_tags();
+            }
+            AsyncMessage::TagCreateError(err) => {
+                self.error_popup = Some(ErrorPopup {
+                    title: "Tag Creation Failed".to_string(),
+                    message: err,
+                });
+            }
+            AsyncMessage::TagDeleted { name } => {
+                self.status_message = Some(format!("Deleted tag: {}", name));
+                // Refresh tags list
+                self.tags_fetched = false;
+                self.fetch_tags();
+            }
+            AsyncMessage::TagDeleteError(err) => {
+                self.error_popup = Some(ErrorPopup {
+                    title: "Tag Deletion Failed".to_string(),
+                    message: err,
+                });
+            }
+            AsyncMessage::TagPushed(name) => {
+                self.status_message = Some(format!("Pushed tag: {}", name));
+                // Refresh tags list
+                self.tags_fetched = false;
+                self.fetch_tags();
+            }
+            AsyncMessage::TagPushError(err) => {
+                self.error_popup = Some(ErrorPopup {
+                    title: "Tag Push Failed".to_string(),
+                    message: err,
+                });
             }
         }
     }
@@ -1013,6 +1168,72 @@ impl App {
                     let _ = tx
                         .send(AsyncMessage::PrCommentAddError(e.to_string()))
                         .await;
+                }
+            }
+        });
+    }
+
+    /// Spawn a task to merge the current PR
+    fn merge_pr(&mut self) {
+        let pr = match &self.selected_pr {
+            Some(pr) => pr,
+            None => return,
+        };
+
+        // Check PR state - only merge if open
+        if pr.state != Some(octocrab::models::IssueState::Open) {
+            self.error_popup = Some(ErrorPopup {
+                title: "Cannot Merge".to_string(),
+                message: "This PR is already closed or merged.".to_string(),
+            });
+            return;
+        }
+
+        let repo = match &self.repository {
+            Some(r) => r.clone(),
+            None => return,
+        };
+
+        let pr_number = pr.number;
+        let method = match self.merge_method_selection {
+            0 => MergeMethod::Merge,
+            1 => MergeMethod::Squash,
+            2 => MergeMethod::Rebase,
+            _ => MergeMethod::Merge,
+        };
+        let delete_branch = self.merge_delete_branch;
+        let branch_name = pr.head.ref_field.clone();
+
+        self.merge_in_progress = true;
+        self.status_message = Some("Merging PR...".to_string());
+
+        let tx = self.async_tx.clone();
+
+        tokio::spawn(async move {
+            let result = async {
+                let client = GitHubClient::new(repo.owner.clone(), repo.name.clone()).await?;
+                let pr_handler = PullRequestHandler::new(&client);
+
+                // Perform merge (no custom commit message per requirements)
+                pr_handler.merge(pr_number, method, None, None).await?;
+
+                // Optionally delete branch (errors are non-fatal)
+                if delete_branch {
+                    let branch_handler = BranchHandler::new(&client);
+                    // Ignore branch deletion errors - may fail if branch is protected, etc.
+                    let _ = branch_handler.delete(&branch_name).await;
+                }
+
+                Ok::<_, GhrustError>(())
+            }
+            .await;
+
+            match result {
+                Ok(()) => {
+                    let _ = tx.send(AsyncMessage::PrMerged(pr_number)).await;
+                }
+                Err(e) => {
+                    let _ = tx.send(AsyncMessage::PrMergeError(e.to_string())).await;
                 }
             }
         });
@@ -1324,6 +1545,7 @@ impl App {
             Screen::PrDetail(_) => self.handle_pr_detail_key(key),
             Screen::PrCreate => self.handle_pr_create_key(key),
             Screen::Commit => self.handle_commit_key(key),
+            Screen::Tags => self.handle_tags_key(key),
             Screen::Settings => self.handle_settings_key(key),
             Screen::WorkflowRuns => self.handle_workflow_runs_key(key),
             _ => {}
@@ -1338,13 +1560,15 @@ impl App {
                 0 => self.navigate_to(Screen::PrList),
                 1 => self.navigate_to(Screen::PrCreate),
                 2 => self.navigate_to(Screen::Commit),
-                3 => self.navigate_to(Screen::WorkflowRuns),
-                4 => self.navigate_to(Screen::Settings),
-                5 => self.quit(),
+                3 => self.navigate_to(Screen::Tags),
+                4 => self.navigate_to(Screen::WorkflowRuns),
+                5 => self.navigate_to(Screen::Settings),
+                6 => self.quit(),
                 _ => {}
             },
             KeyCode::Char('p') => self.navigate_to(Screen::PrList),
             KeyCode::Char('c') => self.navigate_to(Screen::Commit),
+            KeyCode::Char('t') => self.navigate_to(Screen::Tags),
             KeyCode::Char('w') => self.navigate_to(Screen::WorkflowRuns),
             KeyCode::Char('s') => self.navigate_to(Screen::Settings),
             _ => {}
@@ -1630,6 +1854,40 @@ impl App {
         self.pr_create_body_cursor.1 = col + 1;
     }
 
+    /// Handle key events when merge dialog is open
+    fn handle_merge_dialog_key(&mut self, key: KeyEvent) {
+        if self.merge_in_progress {
+            // Block all input while merge is in progress
+            return;
+        }
+
+        match key.code {
+            KeyCode::Esc => {
+                self.merge_dialog_open = false;
+            }
+            KeyCode::Enter => {
+                self.merge_pr();
+            }
+            KeyCode::Char('j') | KeyCode::Down => {
+                // Cycle through merge methods (0, 1, 2)
+                self.merge_method_selection = (self.merge_method_selection + 1) % 3;
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                // Cycle backwards through merge methods
+                self.merge_method_selection = if self.merge_method_selection == 0 {
+                    2
+                } else {
+                    self.merge_method_selection - 1
+                };
+            }
+            KeyCode::Char('d') | KeyCode::Char(' ') => {
+                // Toggle delete branch checkbox
+                self.merge_delete_branch = !self.merge_delete_branch;
+            }
+            _ => {}
+        }
+    }
+
     fn handle_pr_detail_key(&mut self, key: KeyEvent) {
         // If reaction picker is open, handle reaction selection
         if self.reaction_picker_open {
@@ -1677,6 +1935,12 @@ impl App {
                 }
                 _ => {}
             }
+            return;
+        }
+
+        // If merge dialog is open, handle merge dialog keys
+        if self.merge_dialog_open {
+            self.handle_merge_dialog_key(key);
             return;
         }
 
@@ -1805,7 +2069,16 @@ impl App {
                 }
             }
             KeyCode::Char('m') => {
-                self.status_message = Some("Merge feature coming soon...".to_string());
+                // Only allow merge if PR is open
+                if let Some(ref pr) = self.selected_pr {
+                    if pr.state == Some(octocrab::models::IssueState::Open) {
+                        self.merge_dialog_open = true;
+                        self.merge_method_selection = 0; // Reset to first option
+                                                         // Keep delete_branch at its previous value (user preference)
+                    } else {
+                        self.status_message = Some("Cannot merge: PR is not open".to_string());
+                    }
+                }
             }
             KeyCode::Char('d') => {
                 // Expand PR description overlay
@@ -2221,6 +2494,12 @@ impl App {
                 self.workflow_runs.clear();
                 self.workflow_runs_fetched = false;
                 self.fetch_workflow_runs();
+            }
+            Screen::Tags => {
+                // Fetch tags if not already fetched
+                if !self.tags_fetched && !self.tags_loading {
+                    self.fetch_tags();
+                }
             }
             _ => {}
         }
@@ -2731,6 +3010,147 @@ impl App {
             }
         }
         self.running = false;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Tag methods
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// Fetch tags (local and remote)
+    pub fn fetch_tags(&mut self) {
+        if self.tags_loading {
+            return;
+        }
+
+        let repo = match &self.repository {
+            Some(r) => r.clone(),
+            None => {
+                self.tags_error = Some("No repository context".to_string());
+                return;
+            }
+        };
+
+        self.tags_loading = true;
+        self.tags_error = None;
+        self.status_message = Some("Loading tags...".to_string());
+
+        let tx = self.async_tx.clone();
+
+        tokio::spawn(async move {
+            use crate::core::git::GitRepository;
+            use crate::github::{GitHubClient, TagHandler};
+
+            let result = async {
+                // Get local tags
+                let git = GitRepository::open_current_dir()?;
+                let local_tags = git.list_tags()?;
+
+                // Get remote tags
+                let client = GitHubClient::new(repo.owner.clone(), repo.name.clone()).await?;
+                let handler = TagHandler::new(&client);
+                let remote_tags = handler.list().await?;
+                let remote_tag_names: Vec<String> =
+                    remote_tags.into_iter().map(|t| t.name).collect();
+
+                Ok::<_, crate::error::GhrustError>((local_tags, remote_tag_names))
+            }
+            .await;
+
+            match result {
+                Ok((local_tags, remote_tags)) => {
+                    let _ = tx
+                        .send(AsyncMessage::TagsLoaded {
+                            local_tags,
+                            remote_tags,
+                        })
+                        .await;
+                }
+                Err(e) => {
+                    let _ = tx.send(AsyncMessage::TagsError(e.to_string())).await;
+                }
+            }
+        });
+    }
+
+    /// Handle key events on the tags screen
+    fn handle_tags_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Char('j') | KeyCode::Down => self.tags_selection.next(),
+            KeyCode::Char('k') | KeyCode::Up => self.tags_selection.previous(),
+            KeyCode::Char('r') => {
+                // Force refresh
+                self.tags_local.clear();
+                self.tags_remote.clear();
+                self.tags_fetched = false;
+                self.fetch_tags();
+            }
+            KeyCode::Char('p') => {
+                // Push selected tag
+                if let Some(tag) = self.tags_local.get(self.tags_selection.selected) {
+                    self.push_tag(&tag.name.clone());
+                }
+            }
+            KeyCode::Char('P') => {
+                // Push all tags
+                self.push_all_tags();
+            }
+            _ => {}
+        }
+    }
+
+    /// Push a single tag to remote
+    fn push_tag(&mut self, name: &str) {
+        let tag_name = name.to_string();
+        let tx = self.async_tx.clone();
+
+        self.status_message = Some(format!("Pushing tag {}...", tag_name));
+
+        tokio::spawn(async move {
+            use crate::core::git::GitRepository;
+
+            let result = async {
+                let git = GitRepository::open_current_dir()?;
+                git.push_tag(&tag_name)?;
+                Ok::<_, crate::error::GhrustError>(())
+            }
+            .await;
+
+            match result {
+                Ok(()) => {
+                    let _ = tx.send(AsyncMessage::TagPushed(tag_name)).await;
+                }
+                Err(e) => {
+                    let _ = tx.send(AsyncMessage::TagPushError(e.to_string())).await;
+                }
+            }
+        });
+    }
+
+    /// Push all local tags to remote
+    fn push_all_tags(&mut self) {
+        let tx = self.async_tx.clone();
+
+        self.status_message = Some("Pushing all tags...".to_string());
+
+        tokio::spawn(async move {
+            use crate::core::git::GitRepository;
+
+            let result = async {
+                let git = GitRepository::open_current_dir()?;
+                git.push_tags()?;
+                Ok::<_, crate::error::GhrustError>(())
+            }
+            .await;
+
+            match result {
+                Ok(()) => {
+                    let _ = tx.send(AsyncMessage::TagPushed("all".to_string())).await;
+                }
+                Err(e) => {
+                    let _ = tx.send(AsyncMessage::TagPushError(e.to_string())).await;
+                }
+            }
+        });
     }
 
     // ─────────────────────────────────────────────────────────────────────────

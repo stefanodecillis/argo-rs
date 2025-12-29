@@ -518,6 +518,99 @@ impl GitRepository {
 
         Ok(())
     }
+
+    /// List all local tags with their information
+    pub fn list_tags(&self) -> Result<Vec<LocalTagInfo>> {
+        let mut tags = Vec::new();
+
+        self.repo.tag_foreach(|oid, name| {
+            // Tag names come as "refs/tags/tagname"
+            let name = std::str::from_utf8(name)
+                .unwrap_or("")
+                .strip_prefix("refs/tags/")
+                .unwrap_or("")
+                .to_string();
+
+            if name.is_empty() {
+                return true; // continue iteration
+            }
+
+            // Try to get the tag object (for annotated tags)
+            let (sha, is_annotated, message) = if let Ok(tag) = self.repo.find_tag(oid) {
+                // Annotated tag - get the target commit SHA
+                let target_sha = tag.target_id().to_string();
+                let msg = tag.message().map(|m| m.trim().to_string());
+                (target_sha, true, msg)
+            } else {
+                // Lightweight tag - oid is the commit SHA directly
+                (oid.to_string(), false, None)
+            };
+
+            tags.push(LocalTagInfo {
+                name,
+                sha: sha[..7.min(sha.len())].to_string(), // Short SHA
+                is_annotated,
+                message,
+            });
+
+            true // continue iteration
+        })?;
+
+        // Sort tags by name (reverse to show newest versions first)
+        tags.sort_by(|a, b| b.name.cmp(&a.name));
+
+        Ok(tags)
+    }
+
+    /// Check if a tag exists locally
+    pub fn tag_exists(&self, name: &str) -> Result<bool> {
+        let refname = format!("refs/tags/{}", name);
+        Ok(self.repo.find_reference(&refname).is_ok())
+    }
+
+    /// Delete a local tag
+    pub fn delete_tag(&self, name: &str) -> Result<()> {
+        self.repo.tag_delete(name).map_err(|e| {
+            if e.code() == git2::ErrorCode::NotFound {
+                GhrustError::TagNotFound(name.to_string())
+            } else {
+                e.into()
+            }
+        })
+    }
+
+    /// Delete a tag from remote using system git
+    pub fn delete_remote_tag(&self, tag_name: &str) -> Result<()> {
+        let output = Command::new("git")
+            .args(["push", "origin", "--delete", tag_name])
+            .output()
+            .map_err(|e| {
+                GhrustError::Custom(format!("Failed to execute git push --delete tag: {}", e))
+            })?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(GhrustError::Custom(format!(
+                "Delete remote tag failed: {}",
+                stderr.trim()
+            )));
+        }
+
+        Ok(())
+    }
+}
+
+/// Information about a local tag
+#[derive(Debug, Clone)]
+pub struct LocalTagInfo {
+    /// Tag name
+    pub name: String,
+    /// Short commit SHA the tag points to
+    pub sha: String,
+    /// Whether this is an annotated tag (vs lightweight)
+    pub is_annotated: bool,
+    /// Tag message (only for annotated tags)
+    pub message: Option<String>,
 }
 
 /// Status of a file in the working directory

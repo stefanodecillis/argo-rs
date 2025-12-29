@@ -9,3 +9,4 @@ pub mod pr_create;
 pub mod pr_detail;
 pub mod pr_list;
 pub mod settings;
+pub mod tags;

@@ -28,6 +28,9 @@ pub enum Commands {
     /// Manage branches
     Branch(BranchArgs),
 
+    /// Manage tags
+    Tag(TagArgs),
+
     /// Create commits
     Commit(CommitArgs),
 
@@ -206,6 +209,69 @@ pub enum BranchCommand {
         /// Force delete without confirmation
         #[arg(long, short)]
         force: bool,
+    },
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tag Commands
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Tag commands
+#[derive(Parser, Debug)]
+pub struct TagArgs {
+    #[command(subcommand)]
+    pub command: TagCommand,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum TagCommand {
+    /// List tags (local and remote)
+    List {
+        /// Show only local tags
+        #[arg(long)]
+        local: bool,
+
+        /// Show only remote tags
+        #[arg(long)]
+        remote: bool,
+    },
+
+    /// Create a new tag (pushes to remote by default)
+    Create {
+        /// Tag name (e.g., v1.0.0)
+        name: String,
+
+        /// Tag message (creates annotated tag if provided)
+        #[arg(short, long)]
+        message: Option<String>,
+
+        /// Do not push tag to remote after creation
+        #[arg(long)]
+        no_push: bool,
+    },
+
+    /// Delete a tag
+    Delete {
+        /// Tag name to delete
+        name: String,
+
+        /// Force delete without confirmation
+        #[arg(short, long)]
+        force: bool,
+
+        /// Also delete from remote
+        #[arg(short, long)]
+        remote: bool,
+    },
+
+    /// Push tag(s) to remote
+    Push {
+        /// Tag name to push (pushes all if not specified with --all)
+        name: Option<String>,
+
+        /// Push all local tags
+        #[arg(long)]
+        all: bool,
     },
 }
 

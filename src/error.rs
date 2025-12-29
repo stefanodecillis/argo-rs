@@ -128,6 +128,14 @@ pub enum GhrustError {
     )]
     BranchNotFound(String),
 
+    /// Tag already exists
+    #[error("Tag '{0}' already exists.\n\n  → Use 'gr tag delete {0}' to remove it first, or choose a different name.")]
+    TagAlreadyExists(String),
+
+    /// Tag not found
+    #[error("Tag '{0}' not found.\n\n  → Run 'gr tag list' to see available tags.")]
+    TagNotFound(String),
+
     /// Merge conflict
     #[error("Cannot merge this PR: {0}\n\n  → Resolve conflicts locally and push, or try a different merge method.")]
     MergeConflict(String),

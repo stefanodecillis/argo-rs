@@ -11,7 +11,7 @@ use clap::Parser;
 use tracing_subscriber::EnvFilter;
 
 use argo_rs::cli::commands::{AuthCommand, Cli, Commands};
-use argo_rs::cli::{auth, branch, commit, config, pr, push, update, workflow};
+use argo_rs::cli::{auth, branch, commit, config, pr, push, tag, update, workflow};
 use argo_rs::core::git::GitRepository;
 use argo_rs::core::repository::RepositoryContext;
 use argo_rs::core::update::{cleanup_partial_downloads, UpdatePersistentState};
@@ -148,6 +148,7 @@ async fn run() -> Result<()> {
             match command {
                 Commands::Pr(args) => pr::handle_pr(args.command).await,
                 Commands::Branch(args) => branch::handle_branch(args.command).await,
+                Commands::Tag(args) => tag::handle_tag(args.command).await,
                 Commands::Commit(args) => commit::handle_commit(args).await,
                 Commands::Push(args) => push::handle_push(args).await,
                 Commands::Workflow(args) => workflow::handle_workflow(args.command).await,

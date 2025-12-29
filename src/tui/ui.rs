@@ -327,6 +327,7 @@ fn render_header(frame: &mut Frame, area: Rect, app: &App) {
         Screen::PrDetail(n) => return render_pr_detail_header(frame, area, n),
         Screen::PrCreate => "Create Pull Request",
         Screen::Commit => "Create Commit",
+        Screen::Tags => "Tags",
         Screen::Settings => "Settings",
         Screen::Auth => "Authentication",
         Screen::WorkflowRuns => "Workflow Runs",
@@ -357,6 +358,7 @@ fn render_content(frame: &mut Frame, area: Rect, app: &App) {
         Screen::PrCreate => render_pr_create(frame, area, app),
         Screen::PrDetail(number) => render_pr_detail(frame, area, app, number),
         Screen::Commit => render_commit_screen(frame, area, app),
+        Screen::Tags => render_tags(frame, area, app),
         Screen::Settings => render_settings(frame, area, app),
         Screen::Auth => render_placeholder(frame, area, "Authentication", "Coming soon..."),
         Screen::WorkflowRuns => render_workflow_runs(frame, area, app),
@@ -375,6 +377,7 @@ fn render_dashboard(frame: &mut Frame, area: Rect, app: &App) {
         ListItem::new("  [p] Pull Requests"),
         ListItem::new("  [n] New Pull Request"),
         ListItem::new("  [c] Create Commit"),
+        ListItem::new("  [t] Tags"),
         ListItem::new("  [w] Workflow Runs"),
         ListItem::new("  [s] Settings"),
         ListItem::new("  [q] Quit"),
@@ -545,6 +548,11 @@ fn render_pr_detail(frame: &mut Frame, area: Rect, app: &App, pr_number: u64) {
     // Render reaction picker overlay if active
     if app.reaction_picker_open {
         render_reaction_picker(frame, app);
+    }
+
+    // Render merge dialog overlay if active
+    if app.merge_dialog_open {
+        render_merge_dialog(frame, app);
     }
 }
 
@@ -1100,6 +1108,98 @@ fn render_reaction_picker(frame: &mut Frame, app: &App) {
         )
         .style(Style::default().bg(Color::Black))
         .alignment(ratatui::layout::Alignment::Center);
+
+    frame.render_widget(paragraph, popup_area);
+}
+
+/// Render the merge dialog overlay
+fn render_merge_dialog(frame: &mut Frame, app: &App) {
+    let pr = match &app.selected_pr {
+        Some(pr) => pr,
+        None => return,
+    };
+
+    let area = frame.area();
+
+    // Centered popup
+    let popup_width = 48_u16;
+    let popup_height = 13_u16;
+    let popup_x = (area.width.saturating_sub(popup_width)) / 2;
+    let popup_y = (area.height.saturating_sub(popup_height)) / 2;
+
+    let popup_area = Rect::new(popup_x, popup_y, popup_width, popup_height);
+
+    // Clear the area behind the popup
+    frame.render_widget(Clear, popup_area);
+
+    // Build content
+    let merge_methods = ["Merge commit", "Squash and merge", "Rebase and merge"];
+
+    let mut lines: Vec<Line> = Vec::new();
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        "  Select merge method:",
+        Style::default().fg(Color::Cyan),
+    )));
+    lines.push(Line::from(""));
+
+    for (i, method) in merge_methods.iter().enumerate() {
+        let prefix = if i == app.merge_method_selection {
+            "  > "
+        } else {
+            "    "
+        };
+        let style = if i == app.merge_method_selection {
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+        };
+        lines.push(Line::from(Span::styled(
+            format!("{}{}", prefix, method),
+            style,
+        )));
+    }
+
+    lines.push(Line::from(""));
+
+    // Delete branch checkbox
+    let checkbox = if app.merge_delete_branch {
+        "[x]"
+    } else {
+        "[ ]"
+    };
+    lines.push(Line::from(vec![
+        Span::raw("  "),
+        Span::styled(checkbox, Style::default().fg(Color::Green)),
+        Span::raw(" Delete branch after merge"),
+    ]));
+
+    lines.push(Line::from(""));
+    lines.push(Line::from(
+        "─".repeat(popup_width.saturating_sub(2) as usize),
+    ));
+
+    // Footer with loading state or actions
+    let footer_text = if app.merge_in_progress {
+        Span::styled("  Merging...", Style::default().fg(Color::Yellow))
+    } else {
+        Span::styled(
+            "  [Enter] Merge  [d] Toggle delete  [Esc] Cancel",
+            Style::default().fg(Color::DarkGray),
+        )
+    };
+    lines.push(Line::from(footer_text));
+
+    let title = format!(" Merge PR #{} ", pr.number);
+
+    let paragraph = Paragraph::new(lines).block(
+        Block::default()
+            .title(title)
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Green)),
+    );
 
     frame.render_widget(paragraph, popup_area);
 }
@@ -1745,6 +1845,99 @@ fn truncate(s: &str, max_len: usize) -> String {
 }
 
 /// Render the workflow runs screen
+/// Render the tags screen
+fn render_tags(frame: &mut Frame, area: Rect, app: &App) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(1)])
+        .split(area);
+
+    // Build remote tags set for checking sync status
+    let remote_tags_set: std::collections::HashSet<&str> =
+        app.tags_remote.iter().map(|s| s.as_str()).collect();
+
+    let items: Vec<ListItem> = if app.tags_loading && app.tags_local.is_empty() {
+        vec![ListItem::new("  Loading tags...")]
+    } else if let Some(err) = &app.tags_error {
+        vec![
+            ListItem::new(format!("  Error: {}", err)).style(Style::default().fg(Color::Red)),
+            ListItem::new(""),
+            ListItem::new("  Press [r] to retry"),
+        ]
+    } else if !app.tags_fetched {
+        vec![ListItem::new("  Press [r] to load tags")]
+    } else if app.tags_local.is_empty() {
+        vec![ListItem::new("  No local tags found")]
+    } else {
+        app.tags_local
+            .iter()
+            .enumerate()
+            .map(|(i, tag)| {
+                let type_indicator = if tag.is_annotated {
+                    "(annotated)"
+                } else {
+                    "(lightweight)"
+                };
+
+                let sync_status = if remote_tags_set.contains(tag.name.as_str()) {
+                    Span::styled("[pushed]", Style::default().fg(Color::Green))
+                } else {
+                    Span::styled("[local only]", Style::default().fg(Color::Yellow))
+                };
+
+                let message_preview = tag
+                    .message
+                    .as_ref()
+                    .map(|m| {
+                        let first_line = m.lines().next().unwrap_or("");
+                        if first_line.len() > 30 {
+                            format!("  {}...", &first_line[..27])
+                        } else {
+                            format!("  {}", first_line)
+                        }
+                    })
+                    .unwrap_or_default();
+
+                let text = Line::from(vec![
+                    Span::raw(format!("  {:<16} ", tag.name)),
+                    Span::styled(tag.sha.clone(), Style::default().fg(Color::DarkGray)),
+                    Span::raw(format!("  {:<12} ", type_indicator)),
+                    sync_status,
+                    Span::styled(message_preview, Style::default().fg(Color::DarkGray)),
+                ]);
+
+                let item = ListItem::new(text);
+
+                if i == app.tags_selection.selected {
+                    item.style(Theme::selected())
+                } else {
+                    item
+                }
+            })
+            .collect()
+    };
+
+    let title = if app.tags_local.is_empty() {
+        " Tags ".to_string()
+    } else {
+        format!(" Tags ({}) ", app.tags_local.len())
+    };
+
+    let list = List::new(items).block(
+        Block::default()
+            .title(title)
+            .borders(Borders::ALL)
+            .border_style(Theme::normal()),
+    );
+
+    frame.render_widget(list, chunks[0]);
+
+    let help =
+        Paragraph::new(" [r] Refresh  [p] Push selected  [P] Push all  [j/k] Navigate  [Esc] Back")
+            .style(Theme::muted());
+    frame.render_widget(help, chunks[1]);
+}
+
 fn render_workflow_runs(frame: &mut Frame, area: Rect, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -2045,6 +2238,7 @@ fn get_help_content(screen: Screen) -> (&'static str, Vec<(&'static str, &'stati
                 ("p", "Go to Pull Requests"),
                 ("n", "Create new Pull Request"),
                 ("c", "Create Commit"),
+                ("t", "Manage Tags"),
                 ("w", "Workflow Runs"),
                 ("s", "Settings"),
                 ("q", "Quit application"),
@@ -2115,6 +2309,20 @@ fn get_help_content(screen: Screen) -> (&'static str, Vec<(&'static str, &'stati
             vec![
                 ("j / ↓", "Move down"),
                 ("k / ↑", "Move up"),
+                ("r", "Refresh"),
+                ("Esc", "Go back"),
+                ("?", "Show this help"),
+            ],
+        ),
+        Screen::Tags => (
+            "Help - Tags",
+            vec![
+                ("j / ↓", "Move down"),
+                ("k / ↑", "Move up"),
+                ("n", "Create new tag"),
+                ("p", "Push selected tag"),
+                ("P", "Push all tags"),
+                ("d", "Delete tag"),
                 ("r", "Refresh"),
                 ("Esc", "Go back"),
                 ("?", "Show this help"),

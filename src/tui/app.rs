@@ -843,9 +843,7 @@ impl App {
                 self.commit_tracking_branch = None;
                 self.push_mode = PushMode::Simple; // Reset push mode
                 self.push_new_branch_name.clear();
-                self.commit_tag_prompt = true;
-                self.status_message =
-                    Some(format!("✓ Pushed to {}. Create a tag? [y/n]", tracking));
+                self.status_message = Some(format!("✓ Pushed to {}", tracking));
             }
             AsyncMessage::PushError(err) => {
                 self.commit_push_loading = false;
@@ -1648,12 +1646,11 @@ impl App {
             KeyCode::Char('k') | KeyCode::Up => self.dashboard_selection.previous(),
             KeyCode::Enter => match self.dashboard_selection.selected {
                 0 => self.navigate_to(Screen::PrList),
-                1 => self.navigate_to(Screen::PrCreate),
-                2 => self.navigate_to(Screen::Commit),
-                3 => self.navigate_to(Screen::Tags),
-                4 => self.navigate_to(Screen::WorkflowRuns),
-                5 => self.navigate_to(Screen::Settings),
-                6 => self.quit(),
+                1 => self.navigate_to(Screen::Commit),
+                2 => self.navigate_to(Screen::Tags),
+                3 => self.navigate_to(Screen::WorkflowRuns),
+                4 => self.navigate_to(Screen::Settings),
+                5 => self.quit(),
                 _ => {}
             },
             KeyCode::Char('p') => self.navigate_to(Screen::PrList),
@@ -2358,26 +2355,27 @@ impl App {
             KeyCode::Char('a') => self.stage_all_files(),
             KeyCode::Char('u') => self.unstage_all_files(),
             KeyCode::Char('r') => self.refresh_changed_files(),
+            KeyCode::Enter
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
+                // Ctrl+Enter: enter message mode if we have staged files (works from anywhere)
+                let has_staged = self.changed_files.iter().any(|f| f.is_staged);
+                if has_staged {
+                    self.commit_message_mode = true;
+                    self.commit_message.clear();
+                    self.status_message = Some("Enter commit message...".to_string());
+                } else {
+                    self.status_message =
+                        Some("Stage files first (Space to toggle, 'a' to stage all)".to_string());
+                }
+            }
             KeyCode::Enter => {
-                match self.selected_file_in_group {
-                    None => {
-                        // On folder header: toggle expand/collapse
-                        if let Some(group) = self.file_groups.get_mut(self.selected_group_idx) {
-                            group.expanded = !group.expanded;
-                        }
-                    }
-                    Some(_) => {
-                        // On file: enter message mode if we have staged files
-                        let has_staged = self.changed_files.iter().any(|f| f.is_staged);
-                        if has_staged {
-                            self.commit_message_mode = true;
-                            self.commit_message.clear();
-                            self.status_message = Some("Enter commit message...".to_string());
-                        } else {
-                            self.status_message = Some(
-                                "Stage files first (Space to toggle, 'a' to stage all)".to_string(),
-                            );
-                        }
+                // On folder header: toggle expand/collapse
+                if self.selected_file_in_group.is_none() {
+                    if let Some(group) = self.file_groups.get_mut(self.selected_group_idx) {
+                        group.expanded = !group.expanded;
                     }
                 }
             }
@@ -2909,33 +2907,15 @@ impl App {
 
         tokio::spawn(async move {
             let result = async {
-                // Get diff between branches
+                // Get diff between branches (only the diff, no commit messages)
                 let git = GitRepository::open_current_dir()?;
                 let diff = git
                     .branch_diff(&base, &head)
                     .or_else(|_| git.all_changes_diff())?;
 
-                // Get commit messages for context
-                let commits = git.get_commits_between(&base, &head).unwrap_or_default();
-
-                // Build context with commits
-                let context = if commits.is_empty() {
-                    diff
-                } else {
-                    format!(
-                        "Commits:\n{}\n\nDiff:\n{}",
-                        commits
-                            .iter()
-                            .map(|c| format!("- {}", c))
-                            .collect::<Vec<_>>()
-                            .join("\n"),
-                        diff
-                    )
-                };
-
-                // Generate with AI
+                // Generate with AI using only the diff content
                 let client = GeminiClient::new()?;
-                client.generate_pr_content(&context, &head).await
+                client.generate_pr_content(&diff, &head).await
             }
             .await;
 

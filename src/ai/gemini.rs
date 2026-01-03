@@ -92,8 +92,8 @@ impl GeminiClient {
 
     /// Generate a commit message from a diff
     pub async fn generate_commit_message(&self, diff: &str) -> Result<String> {
-        // Truncate diff if too long (Gemini has token limits)
-        let truncated_diff = truncate_diff(diff, 8000);
+        // Smart truncate: keeps complete files, summarizes the rest
+        let truncated_diff = smart_truncate_diff(diff, 8000);
         let prompt = prompts::commit_message_prompt(&truncated_diff);
 
         let response = self.generate(&prompt, 1024).await?;
@@ -110,8 +110,8 @@ impl GeminiClient {
 
     /// Generate a PR title and body from a diff
     pub async fn generate_pr_content(&self, diff: &str, branch_name: &str) -> Result<PrContent> {
-        // Truncate diff if too long
-        let truncated_diff = truncate_diff(diff, 8000);
+        // Smart truncate: keeps complete files, summarizes the rest
+        let truncated_diff = smart_truncate_diff(diff, 8000);
         let prompt = prompts::pr_content_prompt(&truncated_diff, branch_name);
 
         let response = self.generate(&prompt, 4096).await?;
@@ -121,7 +121,148 @@ impl GeminiClient {
     }
 }
 
-/// Truncate diff to approximately max_chars while keeping complete lines
+// ─────────────────────────────────────────────────────────────────────────────
+// Diff parsing and smart truncation
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Represents a single file's diff section
+struct DiffSection {
+    /// File path from the diff header
+    file_path: String,
+    /// Full content of this file's diff
+    content: String,
+    /// Number of added lines (lines starting with '+', excluding header)
+    additions: usize,
+    /// Number of removed lines (lines starting with '-', excluding header)
+    deletions: usize,
+    /// Whether this is a binary file
+    is_binary: bool,
+}
+
+/// Parse a unified diff into per-file sections
+fn parse_diff_sections(diff: &str) -> Vec<DiffSection> {
+    let mut sections = Vec::new();
+    let mut current_content = String::new();
+    let mut current_path: Option<String> = None;
+    let mut additions = 0;
+    let mut deletions = 0;
+    let mut is_binary = false;
+
+    for line in diff.lines() {
+        // Check for new file section
+        if line.starts_with("diff --git ") {
+            // Save previous section if exists
+            if let Some(path) = current_path.take() {
+                sections.push(DiffSection {
+                    file_path: path,
+                    content: std::mem::take(&mut current_content),
+                    additions,
+                    deletions,
+                    is_binary,
+                });
+            }
+
+            // Extract file path: "diff --git a/path b/path" -> "path"
+            // Handle both regular and renamed files
+            if let Some(b_path) = line.split(" b/").last() {
+                current_path = Some(b_path.to_string());
+            }
+            additions = 0;
+            deletions = 0;
+            is_binary = false;
+        }
+
+        // Detect binary files
+        if line.starts_with("Binary files") || line.contains("GIT binary patch") {
+            is_binary = true;
+        }
+
+        // Count additions/deletions (but not header lines)
+        if line.starts_with('+') && !line.starts_with("+++") {
+            additions += 1;
+        } else if line.starts_with('-') && !line.starts_with("---") {
+            deletions += 1;
+        }
+
+        // Append to current section
+        if current_path.is_some() {
+            current_content.push_str(line);
+            current_content.push('\n');
+        }
+    }
+
+    // Don't forget the last section
+    if let Some(path) = current_path {
+        sections.push(DiffSection {
+            file_path: path,
+            content: current_content,
+            additions,
+            deletions,
+            is_binary,
+        });
+    }
+
+    sections
+}
+
+/// Smart truncation that keeps complete files and summarizes the rest
+fn smart_truncate_diff(diff: &str, max_chars: usize) -> String {
+    // If diff fits, return as-is
+    if diff.len() <= max_chars {
+        return diff.to_string();
+    }
+
+    let sections = parse_diff_sections(diff);
+
+    // Fallback to simple truncation if parsing fails or no sections
+    if sections.is_empty() {
+        return truncate_diff(diff, max_chars);
+    }
+
+    let mut result = String::new();
+    let mut summarized_sections: Vec<&DiffSection> = Vec::new();
+
+    // Reserve space for summary section (~60 chars per file + header)
+    let summary_header = "\n--- FILES SUMMARIZED (diff too large) ---\n";
+    let chars_per_summary = 60;
+
+    for section in &sections {
+        let section_size = section.content.len();
+
+        // Estimate how much space we need for summaries of remaining files
+        let remaining_files = sections.len() - summarized_sections.len();
+        let estimated_summary_space = summary_header.len() + (remaining_files * chars_per_summary);
+
+        // Check if we can include this complete file
+        let available_space = max_chars.saturating_sub(result.len() + estimated_summary_space);
+
+        if section_size <= available_space {
+            result.push_str(&section.content);
+        } else {
+            // Can't fit this file, add to summary list
+            summarized_sections.push(section);
+        }
+    }
+
+    // Add summary for files that couldn't be included
+    if !summarized_sections.is_empty() {
+        result.push_str(summary_header);
+        for section in summarized_sections {
+            if section.is_binary {
+                result.push_str(&format!("{} (binary file)\n", section.file_path));
+            } else {
+                result.push_str(&format!(
+                    "{} (+{}/-{} lines)\n",
+                    section.file_path, section.additions, section.deletions
+                ));
+            }
+        }
+    }
+
+    result
+}
+
+/// Simple line-based truncation (fallback when diff parsing fails)
 fn truncate_diff(diff: &str, max_chars: usize) -> String {
     if diff.len() <= max_chars {
         return diff.to_string();

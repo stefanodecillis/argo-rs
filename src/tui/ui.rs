@@ -375,7 +375,6 @@ fn render_dashboard(frame: &mut Frame, area: Rect, app: &App) {
 
     let menu_items = vec![
         ListItem::new("  [p] Pull Requests"),
-        ListItem::new("  [n] New Pull Request"),
         ListItem::new("  [c] Create Commit"),
         ListItem::new("  [t] Tags"),
         ListItem::new("  [w] Workflow Runs"),
@@ -1763,7 +1762,7 @@ fn render_commit_screen(frame: &mut Frame, area: Rect, app: &App) {
     } else if app.commit_message_mode {
         " [Enter] Commit  [Esc] Cancel  [Ctrl+g] Regenerate AI"
     } else {
-        " [Space] Toggle  [a] Stage all  [r] Refresh  [Enter] Commit  [g] AI  [Esc] Back"
+        " [Space] Toggle  [a] Stage all  [r] Refresh  [Ctrl+Enter] Commit  [g] AI  [Esc] Back"
     };
     let help = Paragraph::new(help_text).style(Theme::muted());
     frame.render_widget(help, help_area);

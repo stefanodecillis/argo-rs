@@ -12,6 +12,8 @@ Requirements:
 2. Types: feat, fix, docs, style, refactor, test, chore
 3. Keep the first line under 72 characters
 4. Add a body if needed to explain the "why"
+5. ONLY describe changes that are visible in the diff below
+6. If "FILES SUMMARIZED" appears at the end, acknowledge ALL changed files in the body but focus details on files with full diffs shown
 
 Diff:
 ```
@@ -38,6 +40,12 @@ Requirements for body:
 1. Summary of changes (2-3 sentences)
 2. List of key changes with bullet points
 3. Any breaking changes or important notes
+
+IMPORTANT:
+- ONLY describe changes that are explicitly shown in the diff below
+- Do NOT invent or assume changes not present in the diff
+- If "FILES SUMMARIZED" appears at the end, mention those files briefly in your summary
+- Focus detailed descriptions on files with complete diffs shown
 
 Diff:
 ```

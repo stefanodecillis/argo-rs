@@ -63,6 +63,10 @@ pub enum AsyncMessage {
     PushCompleted(String), // tracking branch name
     /// Push failed
     PushError(String),
+    /// Local branches loaded for push branch selection
+    PushBranchesLoaded(Vec<String>),
+    /// Push branches load failed
+    PushBranchesError(String),
     /// Workflow runs loaded successfully
     WorkflowRunsLoaded {
         runs: Vec<WorkflowRunInfo>,
@@ -219,6 +223,18 @@ impl FileGroup {
     }
 }
 
+/// Push mode for commit screen - controls push prompt UI
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PushMode {
+    /// Simple y/n prompt (default behavior)
+    #[default]
+    Simple,
+    /// Dropdown to select from existing local branches
+    BranchSelect,
+    /// Text input for creating a new branch
+    NewBranch,
+}
+
 /// Main TUI application
 pub struct App {
     /// Whether the app is running
@@ -361,6 +377,24 @@ pub struct App {
     pub selected_group_idx: usize,
     /// Selected file within the group (None = folder header selected, Some(i) = file i)
     pub selected_file_in_group: Option<usize>,
+    /// Scroll offset for commit file list viewport
+    pub commit_file_scroll: usize,
+    /// Viewport height for commit file list (updated during render)
+    pub commit_viewport_height: Cell<usize>,
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Push branch selection
+    // ─────────────────────────────────────────────────────────────────────────
+    /// Push dialog mode: simple (y/n), branch_select, or new_branch
+    pub push_mode: PushMode,
+    /// Available local branches for push target selection
+    pub push_branches: Vec<String>,
+    /// Selected branch index in push branch selector
+    pub push_branch_selection: usize,
+    /// Whether branches are loading for push selector
+    pub push_branches_loading: bool,
+    /// New branch name when creating during push
+    pub push_new_branch_name: String,
 
     // ─────────────────────────────────────────────────────────────────────────
     // PR Create form data
@@ -546,6 +580,15 @@ impl App {
             file_groups: Vec::new(),
             selected_group_idx: 0,
             selected_file_in_group: None,
+            commit_file_scroll: 0,
+            commit_viewport_height: Cell::new(0),
+
+            // Push branch selection
+            push_mode: PushMode::Simple,
+            push_branches: Vec::new(),
+            push_branch_selection: 0,
+            push_branches_loading: false,
+            push_new_branch_name: String::new(),
 
             // PR Create form
             pr_create_title: String::new(),
@@ -798,16 +841,29 @@ impl App {
                 self.commit_push_prompt = false;
                 self.last_commit_hash = None;
                 self.commit_tracking_branch = None;
+                self.push_mode = PushMode::Simple; // Reset push mode
+                self.push_new_branch_name.clear();
                 self.commit_tag_prompt = true;
                 self.status_message =
                     Some(format!("✓ Pushed to {}. Create a tag? [y/n]", tracking));
             }
             AsyncMessage::PushError(err) => {
                 self.commit_push_loading = false;
+                self.push_mode = PushMode::Simple; // Reset push mode on error
                 self.error_popup = Some(ErrorPopup {
                     title: "Push Failed".to_string(),
                     message: err,
                 });
+            }
+            AsyncMessage::PushBranchesLoaded(branches) => {
+                self.push_branches = branches;
+                self.push_branches_loading = false;
+                self.push_branch_selection = 0;
+            }
+            AsyncMessage::PushBranchesError(err) => {
+                self.push_branches_loading = false;
+                self.push_mode = PushMode::Simple; // Fall back to simple mode
+                self.status_message = Some(format!("Failed to load branches: {}", err));
             }
             AsyncMessage::WorkflowRunsLoaded {
                 runs,
@@ -2128,20 +2184,96 @@ impl App {
     fn handle_commit_key(&mut self, key: KeyEvent) {
         // If push prompt is showing, handle push confirmation
         if self.commit_push_prompt {
-            if self.commit_push_loading {
-                return; // Ignore keys while pushing
+            if self.commit_push_loading || self.push_branches_loading {
+                return; // Ignore keys while loading/pushing
             }
-            match key.code {
-                KeyCode::Enter | KeyCode::Char('y') | KeyCode::Char('Y') => {
-                    self.do_push();
+
+            match self.push_mode {
+                PushMode::Simple => {
+                    match key.code {
+                        KeyCode::Enter | KeyCode::Char('y') | KeyCode::Char('Y') => {
+                            self.do_push();
+                        }
+                        KeyCode::Char('b') | KeyCode::Char('B') => {
+                            // Switch to branch selection mode
+                            self.push_mode = PushMode::BranchSelect;
+                            self.load_push_branches();
+                        }
+                        KeyCode::Char('n') | KeyCode::Char('N') if key.modifiers.is_empty() => {
+                            // Skip push (lowercase n without modifiers)
+                            self.commit_push_prompt = false;
+                            self.last_commit_hash = None;
+                            self.commit_tracking_branch = None;
+                            self.push_mode = PushMode::Simple;
+                            self.status_message = Some("Push skipped".to_string());
+                        }
+                        KeyCode::Char('c') | KeyCode::Char('C') => {
+                            // Create new branch mode
+                            self.push_mode = PushMode::NewBranch;
+                            self.push_new_branch_name.clear();
+                        }
+                        KeyCode::Esc => {
+                            self.commit_push_prompt = false;
+                            self.last_commit_hash = None;
+                            self.commit_tracking_branch = None;
+                            self.push_mode = PushMode::Simple;
+                            self.status_message = Some("Push skipped".to_string());
+                        }
+                        _ => {}
+                    }
                 }
-                KeyCode::Esc | KeyCode::Char('n') | KeyCode::Char('N') => {
-                    self.commit_push_prompt = false;
-                    self.last_commit_hash = None;
-                    self.commit_tracking_branch = None;
-                    self.status_message = Some("Push skipped".to_string());
+                PushMode::BranchSelect => match key.code {
+                    KeyCode::Esc => {
+                        self.push_mode = PushMode::Simple;
+                    }
+                    KeyCode::Char('j') | KeyCode::Down => {
+                        if !self.push_branches.is_empty() {
+                            self.push_branch_selection =
+                                (self.push_branch_selection + 1) % self.push_branches.len();
+                        }
+                    }
+                    KeyCode::Char('k') | KeyCode::Up => {
+                        if !self.push_branches.is_empty() {
+                            self.push_branch_selection = self
+                                .push_branch_selection
+                                .checked_sub(1)
+                                .unwrap_or(self.push_branches.len().saturating_sub(1));
+                        }
+                    }
+                    KeyCode::Enter => {
+                        if let Some(branch) = self.push_branches.get(self.push_branch_selection) {
+                            let branch = branch.clone();
+                            self.do_push_to_branch(branch);
+                        }
+                    }
+                    _ => {}
+                },
+                PushMode::NewBranch => {
+                    match key.code {
+                        KeyCode::Esc => {
+                            self.push_mode = PushMode::Simple;
+                            self.push_new_branch_name.clear();
+                        }
+                        KeyCode::Enter => {
+                            if self.push_new_branch_name.trim().is_empty() {
+                                self.status_message =
+                                    Some("Branch name cannot be empty".to_string());
+                            } else {
+                                self.do_create_and_push_branch();
+                            }
+                        }
+                        KeyCode::Backspace => {
+                            self.push_new_branch_name.pop();
+                        }
+                        KeyCode::Char(c) => {
+                            // Validate branch name characters
+                            if c.is_alphanumeric() || c == '-' || c == '_' || c == '/' {
+                                self.push_new_branch_name.push(c);
+                            }
+                        }
+                        _ => {}
+                    }
                 }
-                _ => {}
             }
             return;
         }
@@ -2312,6 +2444,8 @@ impl App {
 
         // Keep legacy selection in sync for toggle_file_staging
         self.sync_legacy_selection();
+        // Adjust scroll to keep selection visible
+        self.adjust_commit_scroll_to_selection();
     }
 
     /// Navigate to previous item in commit screen
@@ -2349,6 +2483,8 @@ impl App {
 
         // Keep legacy selection in sync for toggle_file_staging
         self.sync_legacy_selection();
+        // Adjust scroll to keep selection visible
+        self.adjust_commit_scroll_to_selection();
     }
 
     /// Sync the legacy flat selection with the grouped selection
@@ -2364,6 +2500,48 @@ impl App {
                     }
                 }
             }
+        }
+    }
+
+    /// Adjust scroll offset to ensure current selection is visible in the viewport
+    fn adjust_commit_scroll_to_selection(&mut self) {
+        // Calculate the flat visual index of currently selected item
+        let mut flat_idx: usize = 0;
+        for (group_idx, group) in self.file_groups.iter().enumerate() {
+            if group_idx == self.selected_group_idx {
+                // Found our group
+                if self.selected_file_in_group.is_none() {
+                    // On folder header
+                    break;
+                }
+                // Count folder header
+                flat_idx += 1;
+                // Add file index within folder
+                if let Some(file_idx) = self.selected_file_in_group {
+                    flat_idx += file_idx;
+                }
+                break;
+            }
+            // Count folder header
+            flat_idx += 1;
+            // Count files if expanded
+            if group.expanded {
+                flat_idx += group.files.len();
+            }
+        }
+
+        let viewport_height = self.commit_viewport_height.get();
+        if viewport_height == 0 {
+            return; // Not rendered yet
+        }
+
+        // Scroll down if selection is below viewport
+        if flat_idx >= self.commit_file_scroll + viewport_height {
+            self.commit_file_scroll = flat_idx.saturating_sub(viewport_height) + 1;
+        }
+        // Scroll up if selection is above viewport
+        if flat_idx < self.commit_file_scroll {
+            self.commit_file_scroll = flat_idx;
         }
     }
 
@@ -2793,9 +2971,12 @@ impl App {
                     }
                     if self.changed_files.is_empty() {
                         self.status_message = Some("No changes to commit".to_string());
+                        self.commit_file_scroll = 0; // Reset scroll when empty
                     }
                     // Build file groups for directory-based display
                     self.build_file_groups();
+                    // Ensure scroll is valid after refresh
+                    self.adjust_commit_scroll_to_selection();
                 }
                 Err(e) => {
                     self.status_message = Some(format!("Error: {}", e));
@@ -3035,6 +3216,95 @@ impl App {
 
             let message = match result {
                 Ok(Ok(())) => AsyncMessage::PushCompleted(tracking_clone),
+                Ok(Err(e)) => AsyncMessage::PushError(e.to_string()),
+                Err(e) => AsyncMessage::PushError(format!("Task failed: {}", e)),
+            };
+
+            let _ = sender.send(message).await;
+        });
+    }
+
+    /// Load available local branches for push branch selection
+    fn load_push_branches(&mut self) {
+        self.push_branches_loading = true;
+        self.push_branches.clear();
+        self.push_branch_selection = 0;
+
+        let sender = self.async_tx.clone();
+
+        tokio::spawn(async move {
+            let result = tokio::task::spawn_blocking(|| {
+                let repo = GitRepository::open_current_dir()?;
+                repo.local_branches()
+            })
+            .await;
+
+            let message = match result {
+                Ok(Ok(branches)) => AsyncMessage::PushBranchesLoaded(branches),
+                Ok(Err(e)) => AsyncMessage::PushBranchesError(e.to_string()),
+                Err(e) => AsyncMessage::PushBranchesError(format!("Task failed: {}", e)),
+            };
+
+            let _ = sender.send(message).await;
+        });
+    }
+
+    /// Push to a specific branch (checkout first, then push)
+    fn do_push_to_branch(&mut self, target_branch: String) {
+        self.commit_push_loading = true;
+        self.status_message = None;
+
+        let sender = self.async_tx.clone();
+        let branch_clone = target_branch.clone();
+
+        tokio::spawn(async move {
+            let result = tokio::task::spawn_blocking(move || {
+                let repo = GitRepository::open_current_dir()?;
+                // Checkout the target branch
+                repo.checkout(&target_branch)?;
+                // Push it
+                repo.push(false)?;
+                Ok::<_, crate::error::GhrustError>(())
+            })
+            .await;
+
+            let message = match result {
+                Ok(Ok(())) => AsyncMessage::PushCompleted(branch_clone),
+                Ok(Err(e)) => AsyncMessage::PushError(e.to_string()),
+                Err(e) => AsyncMessage::PushError(format!("Task failed: {}", e)),
+            };
+
+            let _ = sender.send(message).await;
+        });
+    }
+
+    /// Create a new branch and push it
+    fn do_create_and_push_branch(&mut self) {
+        let new_branch = self.push_new_branch_name.trim().to_string();
+        if new_branch.is_empty() {
+            self.status_message = Some("Branch name cannot be empty".to_string());
+            return;
+        }
+
+        self.commit_push_loading = true;
+        self.status_message = None;
+
+        let sender = self.async_tx.clone();
+        let branch_clone = new_branch.clone();
+
+        tokio::spawn(async move {
+            let result = tokio::task::spawn_blocking(move || {
+                let repo = GitRepository::open_current_dir()?;
+                // Create new branch and switch to it
+                repo.create_branch(&new_branch)?;
+                // Push with upstream tracking
+                repo.set_upstream(&format!("origin/{}", new_branch))?;
+                Ok::<_, crate::error::GhrustError>(())
+            })
+            .await;
+
+            let message = match result {
+                Ok(Ok(())) => AsyncMessage::PushCompleted(branch_clone),
                 Ok(Err(e)) => AsyncMessage::PushError(e.to_string()),
                 Err(e) => AsyncMessage::PushError(format!("Task failed: {}", e)),
             };

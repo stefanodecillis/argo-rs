@@ -1590,13 +1590,25 @@ fn render_commit_screen(frame: &mut Frame, area: Rect, app: &App) {
         // Build items from file groups
         let items: Vec<ListItem> = build_grouped_file_items(app);
 
+        // Calculate viewport height (inner area minus borders)
+        let inner_height = chunks[0].height.saturating_sub(2) as usize;
+        app.commit_viewport_height.set(inner_height);
+
+        // Apply scroll offset - show only visible items
+        let scroll_offset = app.commit_file_scroll.min(items.len().saturating_sub(1));
+        let visible_items: Vec<ListItem> = items
+            .into_iter()
+            .skip(scroll_offset)
+            .take(inner_height)
+            .collect();
+
         let title = format!(
             " Create Commit ({}/{} staged) ",
             staged_count,
             app.changed_files.len()
         );
 
-        let list = List::new(items)
+        let list = List::new(visible_items)
             .block(
                 Block::default()
                     .title(title)
@@ -1635,35 +1647,97 @@ fn render_commit_screen(frame: &mut Frame, area: Rect, app: &App) {
     // Render push prompt if showing
     if app.commit_push_prompt {
         let prompt_area = chunks[1];
-        let tracking = app.commit_tracking_branch.as_deref().unwrap_or("origin");
 
-        let (display_text, border_color) = if app.commit_push_loading {
-            (format!("Pushing to {}...", tracking), Color::Yellow)
-        } else {
-            let hash = app
-                .last_commit_hash
-                .as_ref()
-                .map(|h| &h[..7.min(h.len())])
-                .unwrap_or("commit");
-            (
-                format!("✓ {} created. Push to {}?", hash, tracking),
-                Color::Green,
-            )
-        };
+        match app.push_mode {
+            crate::tui::app::PushMode::Simple => {
+                let tracking = app.commit_tracking_branch.as_deref().unwrap_or("origin");
 
-        let prompt = Paragraph::new(display_text)
-            .style(Style::default().fg(if app.commit_push_loading {
-                Color::Yellow
-            } else {
-                Color::Green
-            }))
-            .block(
-                Block::default()
-                    .title(" Push to Remote ")
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(border_color)),
-            );
-        frame.render_widget(prompt, prompt_area);
+                let (display_text, border_color) = if app.commit_push_loading {
+                    (format!("Pushing to {}...", tracking), Color::Yellow)
+                } else {
+                    let hash = app
+                        .last_commit_hash
+                        .as_ref()
+                        .map(|h| &h[..7.min(h.len())])
+                        .unwrap_or("commit");
+                    (
+                        format!("✓ {} created. Push to {}?", hash, tracking),
+                        Color::Green,
+                    )
+                };
+
+                let prompt = Paragraph::new(display_text)
+                    .style(Style::default().fg(if app.commit_push_loading {
+                        Color::Yellow
+                    } else {
+                        Color::Green
+                    }))
+                    .block(
+                        Block::default()
+                            .title(" Push to Remote ")
+                            .borders(Borders::ALL)
+                            .border_style(Style::default().fg(border_color)),
+                    );
+                frame.render_widget(prompt, prompt_area);
+            }
+            crate::tui::app::PushMode::BranchSelect => {
+                if app.push_branches_loading {
+                    let loading = Paragraph::new("  Loading branches...")
+                        .style(Style::default().fg(Color::Yellow))
+                        .block(
+                            Block::default()
+                                .title(" Select Branch ")
+                                .borders(Borders::ALL)
+                                .border_style(Style::default().fg(Color::Yellow)),
+                        );
+                    frame.render_widget(loading, prompt_area);
+                } else {
+                    // Build branch list with selection indicator
+                    let branch_text: String = app
+                        .push_branches
+                        .iter()
+                        .enumerate()
+                        .map(|(i, branch)| {
+                            if i == app.push_branch_selection {
+                                format!(" > {}", branch)
+                            } else {
+                                format!("   {}", branch)
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" | ");
+
+                    let display_text = if app.push_branches.is_empty() {
+                        "No local branches found".to_string()
+                    } else {
+                        branch_text
+                    };
+
+                    let prompt = Paragraph::new(display_text)
+                        .style(Style::default().fg(Color::Cyan))
+                        .block(
+                            Block::default()
+                                .title(" Select Branch ")
+                                .borders(Borders::ALL)
+                                .border_style(Style::default().fg(Color::Cyan)),
+                        );
+                    frame.render_widget(prompt, prompt_area);
+                }
+            }
+            crate::tui::app::PushMode::NewBranch => {
+                let display_text = format!("{}▌", &app.push_new_branch_name);
+
+                let prompt = Paragraph::new(display_text)
+                    .style(Style::default().fg(Color::White))
+                    .block(
+                        Block::default()
+                            .title(" New Branch Name ")
+                            .borders(Borders::ALL)
+                            .border_style(Style::default().fg(Color::Magenta)),
+                    );
+                frame.render_widget(prompt, prompt_area);
+            }
+        }
     }
 
     // Help bar (last chunk)
@@ -1673,10 +1747,18 @@ fn render_commit_screen(frame: &mut Frame, area: Rect, app: &App) {
         chunks[1]
     };
     let help_text = if app.commit_push_prompt {
-        if app.commit_push_loading {
-            "" // No help text during push - status shown in prompt box
+        if app.commit_push_loading || app.push_branches_loading {
+            "" // No help text during loading
         } else {
-            " [Enter/y] Push  [Esc/n] Skip"
+            match app.push_mode {
+                crate::tui::app::PushMode::Simple => {
+                    " [Enter/y] Push  [b] Branch  [c] Create  [Esc/n] Skip"
+                }
+                crate::tui::app::PushMode::BranchSelect => {
+                    " [j/k] Navigate  [Enter] Push  [Esc] Back"
+                }
+                crate::tui::app::PushMode::NewBranch => " [Enter] Create & Push  [Esc] Back",
+            }
         }
     } else if app.commit_message_mode {
         " [Enter] Commit  [Esc] Cancel  [Ctrl+g] Regenerate AI"

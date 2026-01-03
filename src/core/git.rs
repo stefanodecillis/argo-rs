@@ -265,9 +265,23 @@ impl GitRepository {
     }
 
     /// Stage a file for commit
+    /// Handles both regular files (add_path) and deleted files (remove_path)
     pub fn stage_file(&self, path: &str) -> Result<()> {
         let mut index = self.repo.index()?;
-        index.add_path(Path::new(path))?;
+        let path_obj = Path::new(path);
+
+        // Check if file exists on disk to determine staging method
+        let repo_root = self.root_dir()?;
+        let full_path = repo_root.join(path_obj);
+
+        if full_path.exists() {
+            // File exists - add to index (new or modified)
+            index.add_path(path_obj)?;
+        } else {
+            // File was deleted - remove from index to stage the deletion
+            index.remove_path(path_obj)?;
+        }
+
         index.write()?;
         Ok(())
     }
@@ -299,10 +313,18 @@ impl GitRepository {
     }
 
     /// Stage multiple files at once
+    /// Handles both regular files and deleted files
     pub fn stage_paths(&self, paths: &[&Path]) -> Result<()> {
         let mut index = self.repo.index()?;
+        let repo_root = self.root_dir()?;
+
         for path in paths {
-            index.add_path(path)?;
+            let full_path = repo_root.join(path);
+            if full_path.exists() {
+                index.add_path(path)?;
+            } else {
+                index.remove_path(path)?;
+            }
         }
         index.write()?;
         Ok(())
@@ -450,6 +472,44 @@ impl GitRepository {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(GhrustError::Custom(format!(
                 "Push failed: {}",
+                stderr.trim()
+            )));
+        }
+
+        Ok(())
+    }
+
+    /// Checkout a local branch
+    pub fn checkout(&self, branch_name: &str) -> Result<()> {
+        let output = Command::new("git")
+            .args(["checkout", branch_name])
+            .output()
+            .map_err(|e| GhrustError::Custom(format!("Failed to execute git checkout: {}", e)))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(GhrustError::Custom(format!(
+                "Checkout failed: {}",
+                stderr.trim()
+            )));
+        }
+
+        Ok(())
+    }
+
+    /// Create a new branch from current HEAD and switch to it
+    pub fn create_branch(&self, branch_name: &str) -> Result<()> {
+        let output = Command::new("git")
+            .args(["checkout", "-b", branch_name])
+            .output()
+            .map_err(|e| {
+                GhrustError::Custom(format!("Failed to execute git checkout -b: {}", e))
+            })?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(GhrustError::Custom(format!(
+                "Branch creation failed: {}",
                 stderr.trim()
             )));
         }

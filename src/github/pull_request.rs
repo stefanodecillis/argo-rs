@@ -6,7 +6,7 @@ use octocrab::params::pulls::Sort;
 use octocrab::params::State;
 use serde::{Deserialize, Serialize};
 
-use crate::error::Result;
+use crate::error::{GhrustError, Result};
 use crate::github::client::GitHubClient;
 
 /// Merge method for pull requests
@@ -172,6 +172,25 @@ impl<'a> PullRequestHandler<'a> {
         Ok(items)
     }
 
+    /// Find an existing open PR from head to base branch
+    pub async fn find_existing_pr(&self, head: &str, base: &str) -> Result<Option<PullRequest>> {
+        // GitHub API requires "owner:branch" format for head
+        let head_ref = format!("{}:{}", self.client.owner, head);
+
+        let prs = self
+            .client
+            .pulls()
+            .list()
+            .state(State::Open)
+            .head(&head_ref)
+            .base(base)
+            .per_page(1)
+            .send()
+            .await?;
+
+        Ok(prs.items.into_iter().next())
+    }
+
     /// Get a specific pull request by number
     pub async fn get(&self, number: u64) -> Result<PullRequest> {
         let pr = self.client.pulls().get(number).await?;
@@ -180,6 +199,26 @@ impl<'a> PullRequestHandler<'a> {
 
     /// Create a new pull request
     pub async fn create(&self, params: CreatePrParams) -> Result<PullRequest> {
+        // Check for existing open PR between these branches
+        if let Some(existing) = self.find_existing_pr(&params.head, &params.base).await? {
+            let url = existing
+                .html_url
+                .map(|u| u.to_string())
+                .unwrap_or_else(|| {
+                    format!(
+                        "https://github.com/{}/{}/pull/{}",
+                        self.client.owner, self.client.repo, existing.number
+                    )
+                });
+
+            return Err(GhrustError::PullRequestAlreadyExists {
+                head: params.head,
+                base: params.base,
+                number: existing.number,
+                url,
+            });
+        }
+
         let pulls_handler = self.client.pulls();
         let mut builder = pulls_handler.create(&params.title, &params.head, &params.base);
 

@@ -132,6 +132,19 @@ pub enum GhrustError {
     #[error("Tag '{0}' already exists.\n\n  → Use 'gr tag delete {0}' to remove it first, or choose a different name.")]
     TagAlreadyExists(String),
 
+    /// Pull request already exists between the branches
+    #[error(
+        "A pull request already exists from '{head}' to '{base}'.\n\n  \
+        PR #{number}: {url}\n\n  \
+        → View the existing PR or close it before creating a new one."
+    )]
+    PullRequestAlreadyExists {
+        head: String,
+        base: String,
+        number: u64,
+        url: String,
+    },
+
     /// Tag not found
     #[error("Tag '{0}' not found.\n\n  → Run 'gr tag list' to see available tags.")]
     TagNotFound(String),

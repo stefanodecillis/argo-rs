@@ -500,8 +500,8 @@ fn render_pr_list(frame: &mut Frame, area: Rect, app: &App) {
 
     frame.render_widget(list, chunks[0]);
 
-    let help =
-        Paragraph::new(" [n] New PR  [r] Refresh  [Enter] View  [Esc] Back").style(Theme::muted());
+    let help = Paragraph::new(" [n] New PR  [r] Refresh  [o] Open  [Enter] View  [Esc] Back")
+        .style(Theme::muted());
     frame.render_widget(help, chunks[1]);
 }
 
@@ -531,7 +531,7 @@ fn render_pr_detail(frame: &mut Frame, area: Rect, app: &App, pr_number: u64) {
     } else if app.pr_comment_input_mode {
         " [Enter] Submit  [Esc] Cancel"
     } else {
-        " [j/k] Navigate  [Enter] Expand  [d] Description  [c] Comment  [m] Merge  [r] Refresh  [Esc] Back"
+        " [j/k] Navigate  [Enter] Expand  [d] Description  [c] Comment  [m] Merge  [o] Open  [r] Refresh  [Esc] Back"
     };
     let help = Paragraph::new(help_text).style(Theme::muted());
     frame.render_widget(help, main_chunks[1]);
@@ -2234,7 +2234,8 @@ fn render_workflow_runs(frame: &mut Frame, area: Rect, app: &App) {
 
     frame.render_widget(list, chunks[0]);
 
-    let help = Paragraph::new(" [r] Refresh  [j/k] Navigate  [Esc] Back").style(Theme::muted());
+    let help =
+        Paragraph::new(" [r] Refresh  [o] Open  [j/k] Navigate  [Esc] Back").style(Theme::muted());
     frame.render_widget(help, chunks[1]);
 }
 

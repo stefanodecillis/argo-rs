@@ -20,6 +20,7 @@ pub use app::App;
 ///
 /// # Examples
 /// ```
+/// # use argo_rs::tui::split_lines_preserve_trailing;
 /// // lines() drops trailing newlines:
 /// assert_eq!("hello\n".lines().collect::<Vec<_>>(), vec!["hello"]);
 ///

@@ -94,6 +94,8 @@ pub struct WorkflowRunInfo {
     pub event: String,
     /// Actor who triggered the run
     pub actor: String,
+    /// URL to view the run on GitHub
+    pub html_url: String,
 }
 
 impl WorkflowRunInfo {
@@ -198,6 +200,7 @@ impl<'a> WorkflowHandler<'a> {
                 updated_at: run.updated_at,
                 event: run.event,
                 actor: run.head_commit.author.name.clone(),
+                html_url: run.html_url.to_string(),
             })
             .collect();
 
@@ -225,6 +228,7 @@ impl<'a> WorkflowHandler<'a> {
             updated_at: run.updated_at,
             event: run.event,
             actor: run.head_commit.author.name.clone(),
+            html_url: run.html_url.to_string(),
         })
     }
 }

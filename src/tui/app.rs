@@ -1683,6 +1683,14 @@ impl App {
                 self.pr_list_fetched = false;
                 self.fetch_pr_list();
             }
+            KeyCode::Char('o') => {
+                // Open PR in browser
+                if let Some(pr) = self.pr_list.get(self.pr_list_selection.selected) {
+                    if let Some(url) = &pr.html_url {
+                        crate::github::open_browser(url.as_str());
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -2191,6 +2199,14 @@ impl App {
                     self.pr_description_scroll = 0;
                 }
             }
+            KeyCode::Char('o') => {
+                // Open PR in browser
+                if let Some(ref pr) = self.selected_pr {
+                    if let Some(url) = &pr.html_url {
+                        crate::github::open_browser(url.as_str());
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -2665,6 +2681,12 @@ impl App {
                 self.workflow_runs.clear();
                 self.workflow_runs_fetched = false;
                 self.fetch_workflow_runs();
+            }
+            KeyCode::Char('o') => {
+                // Open workflow run in browser
+                if let Some(run) = self.workflow_runs.get(self.workflow_runs_selection.selected) {
+                    crate::github::open_browser(&run.html_url);
+                }
             }
             _ => {}
         }

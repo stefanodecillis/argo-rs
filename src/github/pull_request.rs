@@ -201,15 +201,12 @@ impl<'a> PullRequestHandler<'a> {
     pub async fn create(&self, params: CreatePrParams) -> Result<PullRequest> {
         // Check for existing open PR between these branches
         if let Some(existing) = self.find_existing_pr(&params.head, &params.base).await? {
-            let url = existing
-                .html_url
-                .map(|u| u.to_string())
-                .unwrap_or_else(|| {
-                    format!(
-                        "https://github.com/{}/{}/pull/{}",
-                        self.client.owner, self.client.repo, existing.number
-                    )
-                });
+            let url = existing.html_url.map(|u| u.to_string()).unwrap_or_else(|| {
+                format!(
+                    "https://github.com/{}/{}/pull/{}",
+                    self.client.owner, self.client.repo, existing.number
+                )
+            });
 
             return Err(GhrustError::PullRequestAlreadyExists {
                 head: params.head,

@@ -1762,7 +1762,7 @@ fn render_commit_screen(frame: &mut Frame, area: Rect, app: &App) {
     } else if app.commit_message_mode {
         " [Enter] Commit  [Esc] Cancel  [Ctrl+g] Regenerate AI"
     } else {
-        " [Space] Toggle  [a] Stage all  [r] Refresh  [Ctrl+Enter] Commit  [g] AI  [Esc] Back"
+        " [Space] Toggle  [a] Stage all  [r] Refresh  [c/Ctrl+Enter] Commit  [g] AI  [Esc] Back"
     };
     let help = Paragraph::new(help_text).style(Theme::muted());
     frame.render_widget(help, help_area);
@@ -2509,7 +2509,8 @@ fn get_help_content(screen: Screen) -> (&'static str, Vec<(&'static str, &'stati
                 ("Enter", "Expand/collapse folder"),
                 ("a", "Stage all files"),
                 ("u", "Unstage all files"),
-                ("c / g", "Commit / Generate AI message"),
+                ("c / Ctrl+Enter", "Enter commit message"),
+                ("g", "Generate AI commit message"),
                 ("Esc", "Go back"),
             ],
         ),

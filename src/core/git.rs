@@ -198,17 +198,15 @@ impl GitRepository {
 
     /// Get commit messages between two branches (base..head)
     /// Returns a list of commit messages from commits in head that aren't in base
-    /// Uses merge-base to correctly identify PR commits
+    /// Equivalent to `git rev-list base..head` which matches GitHub's PR commit list
     pub fn get_commits_between(&self, base: &str, head: &str) -> Result<Vec<String>> {
         let base_commit = self.resolve_branch_to_commit(base)?;
         let head_commit = self.resolve_branch_to_commit(head)?;
 
-        // Find merge base (common ancestor) - this is what GitHub uses for PRs
-        let merge_base = self.repo.merge_base(base_commit.id(), head_commit.id())?;
-
         let mut revwalk = self.repo.revwalk()?;
         revwalk.push(head_commit.id())?;
-        revwalk.hide(merge_base)?;
+        // Hide base commit and ALL its ancestors (equivalent to git rev-list base..head)
+        revwalk.hide(base_commit.id())?;
 
         let mut messages = Vec::new();
         for oid in revwalk {

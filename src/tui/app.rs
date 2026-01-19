@@ -556,7 +556,7 @@ impl App {
             // PR Merge dialog
             merge_dialog_open: false,
             merge_method_selection: 0,
-            merge_delete_branch: true, // Default to deleting branch (common workflow)
+            merge_delete_branch: false, // Default to NOT deleting branch
             merge_in_progress: false,
 
             // Auth/Settings
@@ -1773,8 +1773,8 @@ impl App {
                     _ => {}
                 }
             }
-            // Up/Down: navigate within branch lists or body
-            KeyCode::Up | KeyCode::Char('k') => {
+            // Up/Down: navigate within branch lists or body (arrow keys only)
+            KeyCode::Up => {
                 match self.pr_create_field {
                     1 => self.pr_create_head_selection.previous(),
                     2 => self.pr_create_base_selection.previous(),
@@ -1787,7 +1787,7 @@ impl App {
                     _ => {}
                 }
             }
-            KeyCode::Down | KeyCode::Char('j') => {
+            KeyCode::Down => {
                 match self.pr_create_field {
                     1 => self.pr_create_head_selection.next(),
                     2 => self.pr_create_base_selection.next(),
@@ -1902,9 +1902,25 @@ impl App {
                     _ => {}
                 }
             }
-            // Character input for text fields, or 'a' for AI generation
+            // Character input for text fields, with vim navigation for branch selectors
             KeyCode::Char(c) => match self.pr_create_field {
                 0 => self.pr_create_title.push(c),
+                1 => {
+                    // Branch selector: use j/k for vim navigation
+                    if c == 'j' {
+                        self.pr_create_head_selection.next();
+                    } else if c == 'k' {
+                        self.pr_create_head_selection.previous();
+                    }
+                }
+                2 => {
+                    // Branch selector: use j/k for vim navigation
+                    if c == 'j' {
+                        self.pr_create_base_selection.next();
+                    } else if c == 'k' {
+                        self.pr_create_base_selection.previous();
+                    }
+                }
                 3 => {
                     self.insert_char_at_body_cursor(c);
                 }

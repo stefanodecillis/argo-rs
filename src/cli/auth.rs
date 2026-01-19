@@ -6,10 +6,12 @@ use std::process::Command;
 use chrono::Utc;
 use octocrab::Octocrab;
 
+use secrecy::SecretString;
+
 use crate::cli::commands::AuthCommand;
 use crate::core::credentials::CredentialStore;
 use crate::error::{GhrustError, Result};
-use crate::github::auth::DeviceFlowAuth;
+use crate::github::auth::{DeviceFlowAuth, OAuthTokenData};
 
 /// Handle authentication commands
 pub async fn handle_auth(command: AuthCommand) -> Result<()> {
@@ -125,8 +127,19 @@ async fn handle_login_pat() -> Result<()> {
     println!("Validating token...");
     validate_token(&token).await?;
 
-    // Store the token
-    CredentialStore::store_github_token(&token)?;
+    // Store the token as OAuthTokenData for unified credential storage
+    // PATs don't expire, so use far-future expiration dates
+    let now = Utc::now();
+    let far_future = now + chrono::Duration::days(365 * 10); // 10 years
+    let token_data = OAuthTokenData {
+        access_token: SecretString::from(token),
+        refresh_token: SecretString::from(String::new()), // PATs don't have refresh tokens
+        token_type: "bearer".to_string(),
+        scope: "repo read:org".to_string(), // Assumed scope for PATs
+        expires_at: far_future,
+        refresh_token_expires_at: now, // Already expired = can't refresh (which is correct for PATs)
+    };
+    CredentialStore::store_github_token_data(&token_data)?;
 
     println!();
     println!("✓ Successfully authenticated with Personal Access Token!");

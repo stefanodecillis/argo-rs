@@ -28,6 +28,7 @@ use crate::github::pull_request::{
 };
 use crate::github::workflow::{WorkflowHandler, WorkflowRunInfo};
 use crate::tui::event::{is_back_key, is_quit_key, AppEvent, EventHandler};
+use crate::tui::split_lines_preserve_trailing;
 use crate::tui::ui;
 
 /// Message type for async operation results
@@ -1737,7 +1738,7 @@ impl App {
                     }
                     3 => {
                         // Body field - insert newline
-                        let lines: Vec<&str> = self.pr_create_body.lines().collect();
+                        let lines = split_lines_preserve_trailing(&self.pr_create_body);
                         let (row, col) = self.pr_create_body_cursor;
 
                         // Rebuild body with newline inserted
@@ -1793,8 +1794,8 @@ impl App {
                     2 => self.pr_create_base_selection.next(),
                     3 => {
                         // Move cursor down in body
-                        let line_count = self.pr_create_body.lines().count().max(1);
-                        if self.pr_create_body_cursor.0 < line_count - 1 {
+                        let line_count = split_lines_preserve_trailing(&self.pr_create_body).len();
+                        if self.pr_create_body_cursor.0 < line_count.saturating_sub(1) {
                             self.pr_create_body_cursor.0 += 1;
                         }
                     }
@@ -1817,7 +1818,7 @@ impl App {
                 match self.pr_create_field {
                     0 => {} // Title uses simple string
                     3 => {
-                        let lines: Vec<&str> = self.pr_create_body.lines().collect();
+                        let lines = split_lines_preserve_trailing(&self.pr_create_body);
                         let (row, col) = self.pr_create_body_cursor;
                         if let Some(line) = lines.get(row) {
                             if col < line.len() {
@@ -1837,7 +1838,7 @@ impl App {
                     3 => {
                         // Delete character in body at cursor
                         if !self.pr_create_body.is_empty() {
-                            let lines: Vec<&str> = self.pr_create_body.lines().collect();
+                            let lines = split_lines_preserve_trailing(&self.pr_create_body);
                             let (row, col) = self.pr_create_body_cursor;
 
                             if col > 0 {
@@ -1932,7 +1933,7 @@ impl App {
 
     /// Insert a character at the current body cursor position
     fn insert_char_at_body_cursor(&mut self, c: char) {
-        let lines: Vec<&str> = self.pr_create_body.lines().collect();
+        let lines = split_lines_preserve_trailing(&self.pr_create_body);
         let (row, col) = self.pr_create_body_cursor;
 
         let mut new_body = String::new();
@@ -3510,7 +3511,7 @@ impl App {
                     }
                     1 => {
                         // Insert newline in message field
-                        let lines: Vec<&str> = self.tag_create_message.lines().collect();
+                        let lines = split_lines_preserve_trailing(&self.tag_create_message);
                         let (row, col) = self.tag_create_message_cursor;
 
                         let mut new_message = String::new();
@@ -3549,8 +3550,8 @@ impl App {
             }
             KeyCode::Down => {
                 if self.tag_create_field == 1 {
-                    let line_count = self.tag_create_message.lines().count().max(1);
-                    if self.tag_create_message_cursor.0 < line_count - 1 {
+                    let line_count = split_lines_preserve_trailing(&self.tag_create_message).len();
+                    if self.tag_create_message_cursor.0 < line_count.saturating_sub(1) {
                         self.tag_create_message_cursor.0 += 1;
                     }
                 }
@@ -3563,7 +3564,7 @@ impl App {
             }
             KeyCode::Right => {
                 if self.tag_create_field == 1 {
-                    let lines: Vec<&str> = self.tag_create_message.lines().collect();
+                    let lines = split_lines_preserve_trailing(&self.tag_create_message);
                     let (row, col) = self.tag_create_message_cursor;
                     if let Some(line) = lines.get(row) {
                         if col < line.len() {
@@ -3584,7 +3585,7 @@ impl App {
                 1 => {
                     // Delete character in message at cursor
                     if !self.tag_create_message.is_empty() {
-                        let lines: Vec<&str> = self.tag_create_message.lines().collect();
+                        let lines = split_lines_preserve_trailing(&self.tag_create_message);
                         let (row, col) = self.tag_create_message_cursor;
 
                         if col > 0 {
@@ -3634,7 +3635,7 @@ impl App {
 
     /// Insert a character at the current tag message cursor position
     fn insert_char_at_tag_message_cursor(&mut self, c: char) {
-        let lines: Vec<&str> = self.tag_create_message.lines().collect();
+        let lines = split_lines_preserve_trailing(&self.tag_create_message);
         let (row, col) = self.tag_create_message_cursor;
 
         let mut new_message = String::new();

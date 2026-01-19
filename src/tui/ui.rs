@@ -5,6 +5,8 @@ use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap};
 use regex::Regex;
 
+use crate::tui::split_lines_preserve_trailing;
+
 /// Regex patterns for stripping HTML from markdown
 static HTML_TAG_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"<[^>]+>").unwrap());
 static HTML_COMMENT_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"<!--[\s\S]*?-->").unwrap());
@@ -2077,7 +2079,7 @@ fn render_tag_create_popup(frame: &mut Frame, app: &App) {
         Style::default().fg(Color::White)
     };
 
-    let msg_lines: Vec<&str> = app.tag_create_message.lines().collect();
+    let msg_lines = split_lines_preserve_trailing(&app.tag_create_message);
     let (cursor_row, cursor_col) = app.tag_create_message_cursor;
     let max_line_width = (popup_width.saturating_sub(6)) as usize; // Leave margin
 

@@ -104,7 +104,7 @@ pub struct OAuthTokenData {
 ///
 /// Uses plain strings since SecretString doesn't implement Serialize.
 /// Converted to/from OAuthTokenData for secure handling.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredTokenData {
     /// The access token
     pub access_token: String,

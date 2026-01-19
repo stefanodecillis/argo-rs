@@ -2684,7 +2684,10 @@ impl App {
             }
             KeyCode::Char('o') => {
                 // Open workflow run in browser
-                if let Some(run) = self.workflow_runs.get(self.workflow_runs_selection.selected) {
+                if let Some(run) = self
+                    .workflow_runs
+                    .get(self.workflow_runs_selection.selected)
+                {
                     crate::github::open_browser(&run.html_url);
                 }
             }

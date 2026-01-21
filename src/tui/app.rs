@@ -678,17 +678,18 @@ impl App {
 
         // Main event loop
         while self.running {
-            // Draw the UI
-            terminal
-                .draw(|frame| ui::render(frame, self))
-                .map_err(|e| GhrustError::Terminal(e.to_string()))?;
-
-            // Check for async messages (non-blocking)
+            // Check for async messages FIRST (non-blocking)
+            // This ensures UI always reflects the most recent state
             while let Ok(msg) = self.async_rx.try_recv() {
                 self.handle_async_message(msg);
             }
 
-            // Handle events
+            // Draw the UI SECOND (with updated state)
+            terminal
+                .draw(|frame| ui::render(frame, self))
+                .map_err(|e| GhrustError::Terminal(e.to_string()))?;
+
+            // Handle events THIRD
             if let Some(event) = events.next().await {
                 match event {
                     AppEvent::Key(key) => self.handle_key_event(key),
@@ -719,6 +720,10 @@ impl App {
     fn handle_async_message(&mut self, msg: AsyncMessage) {
         match msg {
             AsyncMessage::PrListLoaded(prs) => {
+                // Debug: log fetch results to help diagnose intermittent empty results
+                #[cfg(debug_assertions)]
+                eprintln!("[DEBUG] PR list loaded: {} PRs", prs.len());
+
                 self.pr_list = prs;
                 self.pr_list_loading = false;
                 self.pr_list_fetched = true;
@@ -2731,8 +2736,9 @@ impl App {
         // Trigger data loading based on screen
         match screen {
             Screen::PrList => {
-                // Always fetch if we haven't fetched yet
-                if !self.pr_list_fetched && !self.pr_list_loading {
+                // Fetch if we haven't fetched yet, OR if list is empty (defensive check
+                // to handle edge cases where pr_list_fetched is true but list is empty)
+                if (!self.pr_list_fetched || self.pr_list.is_empty()) && !self.pr_list_loading {
                     self.fetch_pr_list();
                 }
             }
@@ -2771,8 +2777,10 @@ impl App {
                 self.fetch_workflow_runs();
             }
             Screen::Tags => {
-                // Fetch tags if not already fetched
-                if !self.tags_fetched && !self.tags_loading {
+                // Fetch if we haven't fetched yet, OR if both lists are empty (defensive check
+                // to handle edge cases where tags_fetched is true but lists are empty)
+                let tags_empty = self.tags_local.is_empty() && self.tags_remote.is_empty();
+                if (!self.tags_fetched || tags_empty) && !self.tags_loading {
                     self.fetch_tags();
                 }
             }
